@@ -10,7 +10,7 @@ ENV HISTFILE=/home/user/.bash_history \
     DEBIAN_FRONTEND=noninteractive \
     TZ=UTC
 
-# install Python 3.12, Node.js, and npm for cross-platform compatibility
+# install Python 3.12, Node.js, npm, and network diagnostic tools for cross-platform compatibility
 RUN apt-get update && apt-get install -y \
       bash \
       software-properties-common \
@@ -19,6 +19,9 @@ RUN apt-get update && apt-get install -y \
       make \
       nodejs \
       npm \
+      net-tools \
+      netcat \
+      iproute2 \
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update \
     && apt-get install -y \
@@ -46,9 +49,10 @@ RUN useradd -m -s /bin/bash user \
 #COPY docker/dev/entrypoint.sh /entrypoint.sh
 #RUN chmod +x /entrypoint.sh
 
-# expose nsflow client port and neuro-san server port
+# expose nsflow client port, neuro-san server port, and proxy port
 EXPOSE 4173
 EXPOSE 30013
+EXPOSE 8005
 
 USER user
 WORKDIR /home/user/app

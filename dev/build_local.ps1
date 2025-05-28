@@ -33,14 +33,27 @@ Write-Host "Docker image $ImageName built successfully."
 # Prepare host path for volume mount
 $hostPath = (Get-Location).Path.Replace('\\','/')
 
-# Convert entrypoint.sh to Unix (LF) line endings before running Docker
-$entrypointPath = "$PSScriptRoot\entrypoint.sh"
-(Get-Content $entrypointPath -Raw) -replace "`r`n", "`n" | Set-Content -NoNewline -Encoding utf8 $entrypointPath
+# Convert all shell scripts to Unix (LF) line endings before running Docker
+$scriptFiles = @(
+    "$PSScriptRoot\entrypoint.sh",
+    "$PSScriptRoot\network_debug.sh",
+    "$PSScriptRoot\fix_connections.sh"
+)
+
+foreach ($scriptFile in $scriptFiles) {
+    if (Test-Path $scriptFile) {
+        Write-Host "Converting $scriptFile to Unix line endings..."
+        (Get-Content $scriptFile -Raw) -replace "`r`n", "`n" | Set-Content -NoNewline -Encoding utf8 $scriptFile
+    }
+}
 
 Write-Host "Running Docker container $ContainerName..."
 # Always expose port 8005 for consistency across all platforms
 # The entrypoint script will determine if it needs to start the proxy server
 # Pass WINDOWS_ENV=true to indicate we're on Windows or WSL
+
+# Run the Docker container and directly execute the entrypoint script with bash
+# This avoids the need to chmod any files
 docker run -it --env-file .env -e "WINDOWS_ENV=true" --rm --name $ContainerName `
     -p 4173:4173 `
     -p 30013:30013 `
@@ -49,6 +62,8 @@ docker run -it --env-file .env -e "WINDOWS_ENV=true" --rm --name $ContainerName 
     -v "${hostPath}:/home/user/app/" `
     --entrypoint bash `
     $ImageName -c "bash /home/user/app/dev/entrypoint.sh"
+
+# Check if Docker run was successful
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to run Docker container $ContainerName."
     exit 1

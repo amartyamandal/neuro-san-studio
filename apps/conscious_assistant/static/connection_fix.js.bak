@@ -1,0 +1,48 @@
+// Fix for Windows/WSL environments - auto-injected by fix_connections.sh
+(function() {
+    console.log('Applying connection fixes for Windows/WSL environments');
+    
+    // Replace any uses of 0.0.0.0 with localhost
+    var originalFetch = window.fetch;
+    window.fetch = function(url, options) {
+        if (typeof url === 'string' && url.includes('0.0.0.0')) {
+            url = url.replace('0.0.0.0', 'localhost');
+            console.log('Redirecting fetch from 0.0.0.0 to localhost:', url);
+        }
+        return originalFetch.call(this, url, options);
+    };
+    
+    // Replace any uses of 0.0.0.0 in XMLHttpRequest
+    var originalOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+        if (typeof url === 'string' && url.includes('0.0.0.0')) {
+            url = url.replace('0.0.0.0', 'localhost');
+            console.log('Redirecting XHR from 0.0.0.0 to localhost:', url);
+        }
+        return originalOpen.call(this, method, url, async, user, password);
+    };
+    
+    // Fix WebSocket connections
+    var originalWebSocket = window.WebSocket;
+    window.WebSocket = function(url, protocols) {
+        if (typeof url === 'string' && url.includes('0.0.0.0')) {
+            url = url.replace(/0\.0\.0\.0/g, 'localhost');
+            console.log('Redirecting WebSocket from 0.0.0.0 to localhost:', url);
+        }
+        return new originalWebSocket(url, protocols);
+    };
+    
+    // Fix EventSource connections (for SSE)
+    var originalEventSource = window.EventSource;
+    if (originalEventSource) {
+        window.EventSource = function(url, options) {
+            if (typeof url === 'string' && url.includes('0.0.0.0')) {
+                url = url.replace(/0\.0\.0\.0/g, 'localhost');
+                console.log('Redirecting EventSource from 0.0.0.0 to localhost:', url);
+            }
+            return new originalEventSource(url, options);
+        };
+    }
+    
+    console.log('Enhanced connection fixes applied successfully');
+})();

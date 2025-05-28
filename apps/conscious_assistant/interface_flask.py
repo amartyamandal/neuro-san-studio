@@ -152,4 +152,13 @@ def run_scheduled_tasks():
 atexit.register(cleanup)
 
 if __name__ == "__main__":
-    socketio.run(app, debug=False, port=5001, allow_unsafe_werkzeug=True, log_output=True, use_reloader=False)
+    # Get host and port from environment variables with fallbacks
+    # Note: We bind to 0.0.0.0 to allow external connections, but access is via localhost
+    host = os.getenv("NSFLOW_HOST", "0.0.0.0")
+    port = int(os.getenv("NSFLOW_PORT", 5001))
+    
+    print(f"Starting server on {host}:{port}")
+    print("Access the app at: http://localhost:{port}")
+    
+    socketio.run(app, host=host, port=port, debug=False, 
+                allow_unsafe_werkzeug=True, log_output=True, use_reloader=False)

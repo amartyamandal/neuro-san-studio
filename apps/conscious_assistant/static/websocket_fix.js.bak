@@ -1,0 +1,86 @@
+/**
+ * websocket_fix.js - Advanced WebSocket and Socket.IO connectivity fixes
+ * 
+ * This script directly patches Socket.IO and native WebSocket implementations
+ * to ensure proper connections even when the browser attempts to connect to 0.0.0.0
+ */
+
+(function() {
+    console.log('Applying advanced WebSocket and Socket.IO fixes');
+    
+    // Store the original WebSocket constructor
+    const OriginalWebSocket = window.WebSocket;
+    
+    // Patch the WebSocket constructor to redirect 0.0.0.0 to localhost
+    window.WebSocket = function(url, protocols) {
+        if (typeof url === 'string') {
+            // Replace 0.0.0.0 with localhost in WebSocket URLs
+            url = url.replace(/0\.0\.0\.0/g, 'localhost');
+            console.log('⚙️ WebSocket connecting to:', url);
+        }
+        return new OriginalWebSocket(url, protocols);
+    };
+    
+    // Copy over prototype and static properties
+    Object.setPrototypeOf(window.WebSocket, OriginalWebSocket);
+    window.WebSocket.prototype = OriginalWebSocket.prototype;
+    window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
+    window.WebSocket.OPEN = OriginalWebSocket.OPEN;
+    window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
+    window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
+    
+    // Wait for Socket.IO to be loaded
+    function patchSocketIO() {
+        if (window.io) {
+            const originalConnect = window.io.connect || window.io;
+            
+            // Override the connect function
+            const patchedConnect = function(url, options) {
+                if (typeof url === 'string' && url.includes('0.0.0.0')) {
+                    url = url.replace(/0\.0\.0\.0/g, 'localhost');
+                    console.log('⚙️ Socket.IO connecting to:', url);
+                }
+                return originalConnect(url, options);
+            };
+            
+            // Apply the patched version
+            if (window.io.connect) {
+                window.io.connect = patchedConnect;
+            } else {
+                window.io = patchedConnect;
+            }
+            
+            console.log('✅ Successfully patched Socket.IO');
+        } else {
+            console.log('⏳ Waiting for Socket.IO to be loaded...');
+            setTimeout(patchSocketIO, 100);
+        }
+    }
+    
+    // Apply Socket.IO patches
+    patchSocketIO();
+    
+    // Patch the location.hostname if it's 0.0.0.0
+    if (window.location.hostname === '0.0.0.0') {
+        try {
+            Object.defineProperty(window.location, 'hostname', {
+                get: function() { return 'localhost'; }
+            });
+            console.log('✅ Patched location.hostname to return localhost');
+        } catch (e) {
+            console.warn('❌ Failed to patch location.hostname:', e);
+        }
+    }
+    
+    // Patch document.domain
+    if (document.domain === '0.0.0.0') {
+        try {
+            document.domain = 'localhost';
+            console.log('✅ Set document.domain to localhost');
+        } catch (e) {
+            console.warn('❌ Failed to set document.domain:', e);
+        }
+    }
+    
+    console.log('✅ Advanced WebSocket and Socket.IO fixes applied');
+})();

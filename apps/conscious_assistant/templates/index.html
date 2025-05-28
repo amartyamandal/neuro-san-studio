@@ -4,17 +4,53 @@
     <meta charset="UTF-8">
     <title>Conscious Thinking Assistant</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <!-- Critical fix: Load our direct Socket.IO fix BEFORE Socket.IO is loaded -->
+    <script src="{{ url_for('static', filename='socketio_direct_fix.js') }}"></script>
+    
     <!-- Google Fonts for a modern look -->
     <link href="https://fonts.googleapis.com/css?family=Inter:400,600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
-    <div class="main-container">
+<body>    <div class="main-container">
         <header>
             <h1>🧠 Conscious Thinking Assistant</h1>
             <p class="subtitle">A collaborative conversation with your AI assistant</p>
+            <div class="connection-indicator">
+                <span>Status: </span>
+                <span id="connection-status" class="status-connecting">Connecting...</span>
+            </div>
         </header>
+          <div id="connection-help" class="connection-help" style="display: none;">
+            <h3>⚠️ Connection Issues Detected</h3>
+            <p>The browser is having trouble connecting to the NeuroSan server. Try these steps:</p>
+            <ol>
+                <li><strong>Check Server URLs:</strong> The app is trying to connect to these URLs:</li>
+                <ul id="connection-urls">
+                    <li><a href="http://localhost:30013" target="_blank">http://localhost:30013</a> (API)</li>
+                    <li><a href="http://localhost:4173" target="_blank">http://localhost:4173</a> (Frontend)</li>
+                    <li><a href="http://localhost:5003" target="_blank">http://localhost:5003</a> (Web Client)</li>
+                </ul>
+                <li><strong>Fix Connection Issues:</strong>
+                    <ul>
+                        <li>Run <code>bash /home/user/app/dev/fix_connections.sh</code> in the container</li>
+                        <li>Run <code>sudo bash /home/user/app/dev/host_fix.sh</code> if the above doesn't work</li>
+                    </ul>
+                </li>
+                <li><strong>Try Direct Fixes:</strong>
+                    <ul>
+                        <li><button onclick="forceLocalhostConnection()">Try Localhost Connection</button></li>
+                        <li><button onclick="detectAndFixConnection()">Auto-Detect Port</button></li>
+                        <li><button onclick="document.location.reload()">Reload Page</button></li>
+                    </ul>
+                </li>
+                <li>Manually restart the Flask server in the container with:</li>
+                <pre>cd /home/user/app && python -m apps.conscious_assistant.interface_flask</pre>
+            </ol>
+            <div id="connection-diagnostics"></div>
+            <button onclick="this.parentElement.style.display='none'">Dismiss</button>
+        </div>
 
         <section id="assistant-speech-section" aria-label="Assistant's Response">
             <h2>Assistant</h2>
@@ -40,14 +76,132 @@
     </div>
     <footer>
         <small>&copy; {{year}} Conscious Thinking Assistant &mdash; Powered by Neuro-San</small>
-    </footer>
-
+    </footer>    <!-- Load our connection fixes and override config first with error handling -->
     <script>
-        var socket = io.connect('http://' + document.domain + ':' + location.port + '/chat');
-
-        socket.on('connect', function() {
-            console.log('Websocket connected!');
-        });
+        // Error handler for loading scripts
+        function handleScriptError(scriptName) {
+            console.error('Failed to load script: ' + scriptName);
+            // Create fallback variables if scripts fail to load
+            if (scriptName === 'override_config.js') {
+                window.FORCE_LOCALHOST = true;
+                window.API_HOST = 'localhost';
+                console.log('Using fallback configuration');
+            }
+        }
+        
+        // Fallback script injection if loading fails
+        function injectFallbackScript(content) {
+            var script = document.createElement('script');
+            script.textContent = content;
+            document.head.appendChild(script);
+        }
+        
+        // Basic fallback to fix connections if all else fails
+        var fallbackScript = `
+            (function() {
+                console.log('Applying fallback connection fix');
+                window.FORCE_LOCALHOST = true;
+                if (document.domain === '0.0.0.0') document.domain = 'localhost';
+            })();
+        `;
+    </script>
+    <script src="{{ url_for('static', filename='override_config.js') }}" onerror="handleScriptError('override_config.js')"></script>
+    <script src="{{ url_for('static', filename='websocket_fix.js') }}" onerror="handleScriptError('websocket_fix.js')"></script>
+    <script src="{{ url_for('static', filename='connection_fix.js') }}" onerror="handleScriptError('connection_fix.js'); injectFallbackScript(fallbackScript);"></script>    <script>        // IMPORTANT: Always connect to localhost, not 0.0.0.0
+        // This is crucial for Windows/WSL environments where 0.0.0.0 doesn't work
+        
+        // Directly use localhost instead of document.domain
+        var host = 'localhost';
+        
+        // Use the browser's current port, fallback to common ports if not available
+        var port = location.port;
+        if (!port) {
+            // Try common ports in order
+            port = '30013'; // First try the API port
+            console.log('No port in URL, trying API port:', port);
+        }
+        
+        var socketUrl = 'http://' + host + ':' + port + '/chat';
+        
+        console.log('🔌 Socket.IO connecting to fixed URL:', socketUrl);
+          // Initialize connection attempt tracking
+        var connectionAttempts = 0;
+        var maxAttempts = 5;
+        var connectionStartTime = Date.now();
+        var socket = null;
+        
+        // Create a function to try different connection strategies
+        function createSocketConnection() {
+            // Strategy 1: Always use localhost with explicit connection options
+            var options = {
+                forceNew: true,
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                timeout: 5000,
+                transports: ['websocket', 'polling']
+            };
+            
+            // Force disconnect any existing socket
+            if (socket) {
+                try {
+                    socket.disconnect();
+                } catch (e) {
+                    console.warn("Error disconnecting existing socket:", e);
+                }
+            }
+            
+            // Create with localhost explicitly (most reliable)
+            console.log(`🔄 Connection attempt ${connectionAttempts+1}/${maxAttempts} to Socket.IO at localhost:${port}`);
+            
+            // We explicitly use localhost instead of socketUrl
+            socket = io('http://localhost:' + port + '/chat', options);
+            
+            socket.on('connect', function() {
+                console.log('✅ Websocket connected successfully!');
+                document.getElementById('connection-status').textContent = 'Connected';
+                document.getElementById('connection-status').classList.remove('status-error');
+                document.getElementById('connection-status').classList.add('status-ok');
+                
+                // Hide help if it was showing
+                document.getElementById('connection-help').style.display = 'none';
+            });
+            
+            socket.on('connect_error', function(error) {
+                connectionAttempts++;
+                console.error(`❌ Socket.IO connection error (attempt ${connectionAttempts}/${maxAttempts}):`, error);
+                document.getElementById('connection-status').textContent = `Connection error (${connectionAttempts}/${maxAttempts})`;
+                document.getElementById('connection-status').classList.add('status-error');
+                
+                // Try different strategies based on number of attempts
+                if (connectionAttempts < maxAttempts) {
+                    var tryPort = port;
+                    
+                    // Try different ports on different attempts
+                    if (connectionAttempts === 1) {
+                        // Second attempt: Try API port
+                        tryPort = '30013';
+                    } else if (connectionAttempts === 2) {
+                        // Third attempt: Try web client port
+                        tryPort = '5003'; 
+                    } else if (connectionAttempts === 3) {
+                        // Fourth attempt: Try default Flask port
+                        tryPort = '5000';
+                    }
+                    
+                    console.log(`⚠️ Trying with port ${tryPort}...`);
+                    port = tryPort;
+                    setTimeout(createSocketConnection, 1000);
+                } else {
+                    // Show connection helper if we've had too many failures
+                    document.getElementById('connection-help').style.display = 'block';
+                    console.error("❌ All connection attempts failed!");
+                }
+            });
+        }
+        
+        // Start the connection process
+        createSocketConnection();
 
         socket.on('update_thoughts', function(data) {
             var element = document.getElementById('assistant-thoughts');
@@ -79,11 +233,130 @@
             var thoughtsDiv = document.getElementById('assistant-thoughts');
             thoughtsDiv.classList.toggle('collapsed');
             this.innerText = thoughtsDiv.classList.contains('collapsed') ? 'Show Thoughts' : 'Hide Thoughts';
-        });
-
-        window.addEventListener('beforeunload', function () {
+        });        window.addEventListener('beforeunload', function () {
             navigator.sendBeacon('/shutdown');
         });
+        
+        // Connection diagnostic and fix functions
+        function forceLocalhostConnection() {
+            document.getElementById('connection-diagnostics').innerHTML = "Trying direct localhost connection...";
+            
+            // Force disconnect any existing socket
+            if (socket) {
+                try {
+                    socket.disconnect();
+                } catch(e) { console.warn(e); }
+            }
+            
+            // Create with very explicit options
+            var options = {
+                forceNew: true,
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                timeout: 10000,
+                transports: ['websocket', 'polling']
+            };
+            
+            // Try explicit localhost connection with multiple ports
+            var ports = [30013, 5003, 4173, 5000, 5001];
+            var portIndex = 0;
+            
+            function tryNextPort() {
+                if (portIndex >= ports.length) {
+                    document.getElementById('connection-diagnostics').innerHTML += 
+                        "<br>❌ All ports failed. Please check server status.";
+                    return;
+                }
+                
+                var tryPort = ports[portIndex];
+                document.getElementById('connection-diagnostics').innerHTML += 
+                    "<br>Trying port " + tryPort + "...";
+                
+                socket = io('http://localhost:' + tryPort + '/chat', options);
+                
+                socket.on('connect', function() {
+                    document.getElementById('connection-diagnostics').innerHTML += 
+                        "<br>✅ Connected successfully to port " + tryPort + "!";
+                    document.getElementById('connection-status').textContent = 'Connected to port ' + tryPort;
+                    document.getElementById('connection-status').classList.remove('status-error');
+                    document.getElementById('connection-status').classList.add('status-ok');
+                });
+                
+                socket.on('connect_error', function(error) {
+                    document.getElementById('connection-diagnostics').innerHTML += 
+                        "<br>❌ Failed to connect to port " + tryPort;
+                    portIndex++;
+                    setTimeout(tryNextPort, 1000);
+                });
+            }
+            
+            tryNextPort();
+        }
+        
+        function detectAndFixConnection() {
+            // Test if we can reach any of the ports via fetch
+            document.getElementById('connection-diagnostics').innerHTML = "Testing server connectivity...";
+            
+            var ports = [30013, 5003, 4173, 5000, 5001];
+            var results = [];
+            var successCount = 0;
+            
+            ports.forEach(function(port) {
+                // Use fetch with a timeout to test connection
+                var controller = new AbortController();
+                var timeoutId = setTimeout(() => controller.abort(), 2000);
+                
+                fetch('http://localhost:' + port, { 
+                    signal: controller.signal,
+                    method: 'HEAD'
+                })
+                .then(function(response) {
+                    clearTimeout(timeoutId);
+                    results.push({ port: port, status: 'success', code: response.status });
+                    successCount++;
+                    checkComplete();
+                })
+                .catch(function(error) {
+                    clearTimeout(timeoutId);
+                    results.push({ port: port, status: 'error', message: error.message });
+                    checkComplete();
+                });
+            });
+            
+            function checkComplete() {
+                if (results.length === ports.length) {
+                    var html = "<br>Port scan results:<ul>";
+                    results.forEach(function(result) {
+                        if (result.status === 'success') {
+                            html += "<li>Port " + result.port + ": ✅ Responding (status " + result.code + ")</li>";
+                        } else {
+                            html += "<li>Port " + result.port + ": ❌ Not responding</li>";
+                        }
+                    });
+                    html += "</ul>";
+                    
+                    if (successCount > 0) {
+                        var workingPort = results.find(r => r.status === 'success').port;
+                        html += "<br>Connecting to working port " + workingPort + "...";
+                        
+                        // Reconnect using the working port
+                        if (socket) {
+                            try { socket.disconnect(); } catch(e) {}
+                        }
+                        
+                        socket = io('http://localhost:' + workingPort + '/chat', {
+                            forceNew: true,
+                            reconnection: true
+                        });
+                    } else {
+                        html += "<br>❌ No ports responding. Server may be down.";
+                    }
+                    
+                    document.getElementById('connection-diagnostics').innerHTML += html;
+                }
+            }
+        }
     </script>
 </body>
 </html>

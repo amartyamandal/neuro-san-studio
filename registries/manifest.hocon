@@ -42,10 +42,9 @@
     "retail_ops_and_customer_service.hocon": true,
     "six_thinking_hats.hocon": true,
     "telco_network_support.hocon": true,
-    "pdf_rag.hocon": true,
-    "agentic_rag.hocon": true,
+    "pdf_rag.hocon": true,    "agentic_rag.hocon": true,
     "kwik_agents.hocon": true,
-    "TherapyVignetteSupervisors.hocon": true,
+    "therapy_vignette_supervisors.hocon": true,
 
     # Set the following agent network to true before running apps/conscious_assistant/interface_flask.py
     "conscious_agent.hocon": false,

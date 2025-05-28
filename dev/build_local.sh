@@ -41,7 +41,7 @@ docker run -it --env-file .env -e "WINDOWS_ENV=false" --rm --name "$CONTAINER_NA
   -v "$VOLUME_NAME:/home/user/" \
   -v "$(pwd):/home/user/app/" \
   --entrypoint bash \
-  "$IMAGE_NAME" -c "chmod +x /home/user/app/dev/entrypoint.sh && \
+  "$IMAGE_NAME" -c "chmod +x /home/user/app/dev/*.sh && \
   exec /home/user/app/dev/entrypoint.sh"
 if [ $? -eq 0 ]; then
     echo "Docker container $CONTAINER_NAME ran successfully."
