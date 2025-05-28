@@ -34,9 +34,10 @@ fi
 
 # Run the Docker container
 echo "Running Docker container $CONTAINER_NAME..."
-docker run -it --env-file .env --rm --name "$CONTAINER_NAME" \
+docker run -it --env-file .env -e "WINDOWS_ENV=false" --rm --name "$CONTAINER_NAME" \
   -p 4173:4173 \
   -p 30013:30013 \
+  -p 8005:8005 \
   -v "$VOLUME_NAME:/home/user/" \
   -v "$(pwd):/home/user/app/" \
   --entrypoint bash \

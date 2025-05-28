@@ -10,13 +10,15 @@ ENV HISTFILE=/home/user/.bash_history \
     DEBIAN_FRONTEND=noninteractive \
     TZ=UTC
 
-# install Python 3.12 and make
+# install Python 3.12, Node.js, and npm for cross-platform compatibility
 RUN apt-get update && apt-get install -y \
       bash \
       software-properties-common \
       curl \
       gnupg \
       make \
+      nodejs \
+      npm \
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update \
     && apt-get install -y \
