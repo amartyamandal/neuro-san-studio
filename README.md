@@ -193,7 +193,7 @@ You'll find comprehensive documentation, example agent networks, and tutorials t
 Clone the repo:
 
 ```bash
-git clone [https://github.com/amartyamandal/neuro-san-studio](https://github.com/amartyamandal/neuro-san-studio)
+git clone https://github.com/amartyamandal/neuro-san-studio
 ```
 
 Go to dir:
