@@ -62,6 +62,7 @@
     # python server.py
     "a2a_research_report.hocon": false,
 
-    "LinkedInJobSeekerSupportNetwork.hocon": true
+    "LinkedInJobSeekerSupportNetwork.hocon": true,
+    "cloud_landing_zone_provider.hocon": true
 
 }
