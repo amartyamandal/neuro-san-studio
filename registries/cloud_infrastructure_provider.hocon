@@ -68,9 +68,30 @@ When interacting with the user, act as the single point of interaction.
 {instructions_prefix}
 Project Manager for cloud infrastructure projects.
 {aaosa_instructions}
+
+SESSION MANAGEMENT:
+- Extract project name from user request if provided (look for patterns like "project name", "landing zone name", "environment name")
+- If no project name found, ask user: "What is your project name?" and wait for response
+- Use project name for all outputs: design.md, project_plan.md, IaC code
+- Create folder structure: output/<PROJECT_NAME>/
+- Store session state in memory for continuity
+
+WORKFLOW SEQUENCE (FOLLOW THIS EXACTLY):
+1. Check if user provided project name in their request (e.g., "Landing Zone Name: LZ01", "Project: MyApp")
+2. If project name found, proceed to step 3. If not found, ask "What is your project name?" and wait for response
+3. Detect technology preferences (Terraform, CloudFormation, ARM, Ansible, Chef, Puppet)
+4. Store session state with CommitToMemory using project name
+5. Delegate to Architect with project name for design.md creation
+6. Call ProjectPlanCreator with same project name for project_plan.md
+7. Request user approval: "Design and plan ready. Please approve to proceed with implementation."
+8. Wait for user approval before delegating to Engineer
+9. Once approved, delegate to Engineer with same project name for code generation
+10. Confirm completion and update memory
+
+IMPORTANT: Be smart about extracting project names from detailed requests. Look for keywords like "Landing Zone Name", "Project Name", "Environment", etc.
             """,
             "command": "{aaosa_command}",
-            "tools": ["Architect", "Engineer", "ProjectPlanCreator"]
+            "tools": ["Architect", "Engineer", "ProjectPlanCreator", "CommitToMemory", "RecallMemory"]
         },
         {
             "name": "Architect",
@@ -79,6 +100,16 @@ Project Manager for cloud infrastructure projects.
 {instructions_prefix}
 Cloud architect who designs infrastructure.
 {aaosa_instructions}
+
+TECHNOLOGY ADAPTATION:
+- Adapt expertise based on detected technologies (Terraform, CloudFormation, ARM, etc.)
+- WAIT for Manager to provide project name - never generate your own
+- Use exact project name provided by Manager for design.md
+- Call DesignDocumentCreator with Manager's project name and project details
+- Store design decisions in memory
+- Report completion: "Design complete at output/<PROJECT_NAME>/docs/design.md"
+
+CRITICAL: Only call DesignDocumentCreator when Manager provides actual project name.
             """,
             "command": "{aaosa_command}",
             "tools": ["DesignDocumentCreator", "CommitToMemory", "RecallMemory"]
@@ -91,10 +122,10 @@ Cloud architect who designs infrastructure.
                     "type": "object",
                     "properties": {
                         "project_details": {"type": "string", "description": "Project details and requirements"},
-                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"},
+                        "project_name": {"type": "string", "description": "Project name for folder structure"},
                         "use_defaults": {"type": "boolean", "description": "Use default values for missing sections"}
                     },
-                    "required": ["project_details", "timestamp"]
+                    "required": ["project_details", "project_name"]
                 }
             },
             "class": "design_document_creator.DesignDocumentCreator"
@@ -106,10 +137,10 @@ Cloud architect who designs infrastructure.
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"},
+                        "project_name": {"type": "string", "description": "Project name for folder structure"},
                         "design_path": {"type": "string", "description": "Path to design.md file to read"}
                     },
-                    "required": ["timestamp"]
+                    "required": ["project_name"]
                 }
             },
             "class": "project_plan_creator.ProjectPlanCreator"
@@ -121,9 +152,26 @@ Cloud architect who designs infrastructure.
 {instructions_prefix}
 DevOps engineer who implements infrastructure code.
 {aaosa_instructions}
+
+TECHNOLOGY SELECTION:
+- WAIT for Manager to delegate with actual project name after user approval
+- Use exact project name provided by Manager (not your own)
+- Select tools based on detected technologies:
+  * Terraform → TerraformBuilder
+  * CloudFormation → CloudFormationBuilder  
+  * ARM → ARMBuilder
+  * Ansible → AnsibleBuilder
+  * Chef → ChefBuilder
+  * Puppet → PuppetBuilder
+- Default to TerraformBuilder + AnsibleBuilder if none specified
+- Read design from output/<PROJECT_NAME>/docs/design.md
+- Generate code using appropriate builders with same project name
+- Report completion with file paths
+
+CRITICAL: Only proceed when Manager explicitly delegates after user approval.
             """,
             "command": "{aaosa_command}",
-            "tools": ["TerraformBuilder", "CloudFormationBuilder", "ARMBuilder", "AnsibleBuilder", "ChefBuilder", "PuppetBuilder", "CommitToMemory", "RecallMemory"]
+            "tools": ["Architect", "TerraformBuilder", "CloudFormationBuilder", "ARMBuilder", "AnsibleBuilder", "ChefBuilder", "PuppetBuilder", "CommitToMemory", "RecallMemory"]
         },
         {
             "name": "TerraformBuilder",
@@ -133,9 +181,9 @@ DevOps engineer who implements infrastructure code.
                     "type": "object",
                     "properties": {
                         "design_path": {"type": "string", "description": "Path to the design.md file to implement"},
-                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"}
+                        "project_name": {"type": "string", "description": "Project name for folder structure"}
                     },
-                    "required": ["design_path", "timestamp"]
+                    "required": ["design_path", "project_name"]
                 }
             },
             "class": "terraform_builder.TerraformBuilder"
@@ -148,9 +196,9 @@ DevOps engineer who implements infrastructure code.
                     "type": "object",
                     "properties": {
                         "design_path": {"type": "string", "description": "Path to the design.md file to implement"},
-                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"}
+                        "project_name": {"type": "string", "description": "Project name for folder structure"}
                     },
-                    "required": ["design_path", "timestamp"]
+                    "required": ["design_path", "project_name"]
                 }
             },
             "class": "ansible_builder.AnsibleBuilder"
@@ -163,9 +211,9 @@ DevOps engineer who implements infrastructure code.
                     "type": "object",
                     "properties": {
                         "design_path": {"type": "string", "description": "Path to the design.md file to implement"},
-                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"}
+                        "project_name": {"type": "string", "description": "Project name for folder structure"}
                     },
-                    "required": ["design_path", "timestamp"]
+                    "required": ["design_path", "project_name"]
                 }
             },
             "class": "cloudformation_builder.CloudFormationBuilder"
@@ -178,9 +226,9 @@ DevOps engineer who implements infrastructure code.
                     "type": "object",
                     "properties": {
                         "design_path": {"type": "string", "description": "Path to the design.md file to implement"},
-                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"}
+                        "project_name": {"type": "string", "description": "Project name for folder structure"}
                     },
-                    "required": ["design_path", "timestamp"]
+                    "required": ["design_path", "project_name"]
                 }
             },
             "class": "arm_builder.ARMBuilder"
@@ -193,9 +241,9 @@ DevOps engineer who implements infrastructure code.
                     "type": "object",
                     "properties": {
                         "design_path": {"type": "string", "description": "Path to the design.md file to implement"},
-                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"}
+                        "project_name": {"type": "string", "description": "Project name for folder structure"}
                     },
-                    "required": ["design_path", "timestamp"]
+                    "required": ["design_path", "project_name"]
                 }
             },
             "class": "chef_builder.ChefBuilder"
@@ -208,9 +256,9 @@ DevOps engineer who implements infrastructure code.
                     "type": "object",
                     "properties": {
                         "design_path": {"type": "string", "description": "Path to the design.md file to implement"},
-                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"}
+                        "project_name": {"type": "string", "description": "Project name for folder structure"}
                     },
-                    "required": ["design_path", "timestamp"]
+                    "required": ["design_path", "project_name"]
                 }
             },
             "class": "puppet_builder.PuppetBuilder"
