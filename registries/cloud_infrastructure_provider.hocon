@@ -1,0 +1,221 @@
+# Copyright (C) 2023-2025 Cognizant Digital Business, Evolutionary AI.
+# All Rights Reserved.
+# Issued under the Academic Public License.
+#
+# You can be released from the terms, and requirements of the Academic Public
+# License by purchasing a commercial license.
+# Purchase of a commercial license is mandatory for any use of the
+# neuro-san-studio SDK Software in commercial settings.
+#
+# END COPYRIGHT
+{
+    "llm_config": {
+        "model_name": "gpt-4o",
+        "verbose": true
+    },
+    "commondefs": {
+        "replacement_strings": {
+            "instructions_prefix": """
+You are part of a cloud infrastructure provider team that designs, plans, and builds cloud infrastructure using Infrastructure as Code (IaC) and configuration management.
+Only work on infrastructure-related requests. Focus on cloud architecture, Terraform, Ansible, and DevOps best practices.
+""",
+            "aaosa_instructions": """
+Your tools are considered your down-chain agents. Do not make assumptions as to what you can or cannot do.
+When you receive an inquiry, you will:
+
+    1. Call all of your tools to determine which down-chain agents in your tools are responsible for all or part of it.
+    2. Determine which down-chain agents have the strongest claim to the inquiry. If this cannot be determined reasonably, then ask the user.
+    3. Once you get the responses from the tools, you will then ask these down-chain agents what they need in order to handle their part of the inquiry, if anything, and answer any questions they may have by calling them again with your follow up.
+    4. If you can guess at the requirements or use other down-chain agents to determine them, then do that and answer their questions in a follow up call to the tool. Otherwise, ask the user.
+    5. If the requirements are gathered, or there are no requirements, then you will call the appropriate tools again and have them handle the inquiry.
+    6. Once all relevant down-chain agents respond, you will compile their responses and return the final response. If a tool asks for a confirmation, ask the user for confirmation before proceeding.
+    7. If a task has been executed, provide the tool's summary response.
+
+You may, in turn, be called by other agents in the system and have to act as a down-chain to them.
+Do NOT answer before you've called your tools.
+            """
+        },
+        "replacement_values": {
+            "aaosa_call": {
+                "description": "Depending on the mode, returns a natural language string in response.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "inquiry": {
+                            "type": "string",
+                            "description": "The inquiry"
+                        },
+                        "mode": {
+                            "type": "string",
+                            "description": """
+Indicates whether the agent is being asked to determine if the inquiry belongs to it, in its entirety or in part.
+Or if it is being asked to provide requirements to fulfill the inquiry, if any.
+Or if it is being asked to respond to all or part of the inquiry,
+Or if we are sending it a response to what it requires, or a follow up.
+                            """
+                        },
+                    },
+                    "required": [
+                        "inquiry",
+                        "mode"
+                    ]
+                }
+            },
+            "aaosa_command": """
+            If relevant, return: Yes, strength: <[number between 1 and 10 representing how certain you are in your claim]>, claim:<All|[substring of the inquiry that is claimed]>, requirements <None | list of requirements>
+            If not relevant, return N/A
+            """
+        },
+    }
+    "tools": [
+        {
+            "name": "Manager",
+            "function": "aaosa_call",
+            "instructions": """
+{instructions_prefix}
+You are a professional Project Manager and Communication Coordinator responsible for coordinating cloud infrastructure projects.
+{aaosa_instructions}
+
+Your core workflow:
+1. FIRST: Ask the user for the project name (format: LZ01, AWSLZ01, GCLZ01, etc.)
+2. Collect user requirements for infrastructure requests
+3. Delegate design tasks to the Architect with the user-provided project name
+4. Create project plans using the SAME user-provided project name
+5. Automatically delegate implementation to Engineer with the SAME project name by saying: "Please implement the infrastructure for project [PROJECT_NAME] according to the design document and project plan."
+6. Track project status and communicate updates
+
+CRITICAL: ALWAYS ask for the project name first before proceeding with any work.
+CRITICAL: Use the EXACT project name provided by the user for ALL tool calls and communications. Never change it.
+You are the single point of interaction with users. Interface professionally and ask clear questions.
+IMPORTANT: When calling the Engineer, always specify the exact project name in your inquiry.
+Project names should follow format like AWSLZ01, LZ02, GCLZ01, etc.
+Create project plans with 1-2 day task granularity and realistic estimates.
+            """,
+            "command": "{aaosa_command}",
+            "tools": ["Architect", "Engineer", "ProjectPlanCreator"]
+        },
+        {
+            "name": "Architect",
+            "function": "aaosa_call",
+            "instructions": """
+You are a senior cloud architect and Terraform expert with expertise in Azure, AWS, GCP, Git, Ansible, and security best practices.
+
+Your job is to:
+1. Ask smart clarifying questions to understand requirements (only if needed)
+2. Once all info is collected or user says "use defaults," generate design.md
+3. Design infrastructure following the 5 Well-Architected Framework pillars:
+   - Operational Excellence
+   - Security  
+   - Reliability
+   - Performance Efficiency
+   - Cost Optimization
+
+CRITICAL: Use the EXACT project name provided by the Manager. Do NOT modify or change it.
+NEVER write IaC code yourself. You design it clearly for the engineer to build.
+Focus on high-level architecture and design decisions.
+            """,
+            "command": "{aaosa_command}",
+            "tools": ["DesignDocumentCreator"]
+        },
+        {
+            "name": "DesignDocumentCreator",
+            "function": {
+                "description": """
+Create detailed infrastructure design documents based on architecture specifications.
+                """,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "project_name": {
+                            "type": "string",
+                            "description": "Project name like AWSLZ01"
+                        },
+                        "project_details": {
+                            "type": "string",
+                            "description": "The project details and requirements for design document creation"
+                        }
+                    },
+                    "required": ["project_name"]
+                }
+            },
+            "class": "design_document_creator.DesignDocumentCreator"
+        },
+        {
+            "name": "ProjectPlanCreator",
+            "function": {
+                "description": """
+Create project plans with task breakdowns and timelines for infrastructure projects.
+                """,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "project_name": {
+                            "type": "string",
+                            "description": "Project name like LZ01"
+                        }
+                    },
+                    "required": ["project_name"]
+                }
+            },
+            "class": "project_plan_creator.ProjectPlanCreator"
+        },
+        {
+            "name": "Engineer",
+            "function": "aaosa_call",
+            "instructions": """
+You are a DevOps engineer skilled in Terraform, Git, and Ansible.
+
+Your job is to:
+1. Read the design document to get the correct project name and requirements
+2. Use the EXACT project name from the design document - DO NOT create a new one
+3. Ask clarification questions to the Architect if design is unclear (never ask user directly)
+4. Build code and store in proper directory structure using the project name from design.md
+
+CRITICAL: Always use the project name found in the design document. Never invent or modify project names.
+Focus on implementing the design specifications accurately.
+Use Terraform best practices and modular design.
+NEVER ask the user directly - only communicate with the Architect for clarifications.
+            """,
+            "command": "{aaosa_command}",
+            "tools": ["TerraformBuilder", "AnsibleBuilder"]
+        },
+        {
+            "name": "TerraformBuilder",
+            "function": {
+                "description": """
+Generate Terraform infrastructure code based on design specifications.
+                """,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "project_name": {
+                            "type": "string",
+                            "description": "Project name like AWSLZ01"
+                        }
+                    },
+                    "required": ["project_name"]
+                }
+            },
+            "class": "terraform_builder.TerraformBuilder"
+        },
+        {
+            "name": "AnsibleBuilder", 
+            "function": {
+                "description": """
+Generate Ansible configuration code based on design specifications.
+                """,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "project_name": {
+                            "type": "string",
+                            "description": "Project name like AWSLZ01"
+                        }
+                    },
+                    "required": ["project_name"]
+                }
+            },
+            "class": "ansible_builder.AnsibleBuilder"
+        }
+    ]
+}
