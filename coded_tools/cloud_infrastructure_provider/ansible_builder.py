@@ -80,154 +80,482 @@ class AnsibleBuilder(CodedTool):
         return self.invoke(args, sly_data)
 
     def _parse_design_requirements(self, design_content: str) -> Dict[str, Any]:
-        """Parse design document to extract infrastructure requirements."""
+        """Parse design document to extract infrastructure requirements dynamically."""
         requirements = {
-            "services": [],
-            "databases": [],
-            "load_balancers": [],
-            "monitoring": False,
-            "ssl": False,
-            "backup": False,
-            "security": [],
-            "networking": {},
-            "scaling": {}
+            "cloud_provider": self._detect_cloud_provider(design_content),
+            "region": self._extract_region(design_content),
+            "resources": self._extract_resources(design_content),
+            "networking": self._extract_networking(design_content),
+            "security": self._extract_security(design_content),
+            "monitoring": self._extract_monitoring(design_content),
+            "backup": self._extract_backup(design_content),
+            "scaling": self._extract_scaling(design_content),
+            "compliance": self._extract_compliance(design_content)
         }
-        
-        content_lower = design_content.lower()
-        
-        # Parse services from design
-        if "nginx" in content_lower or "web server" in content_lower:
-            requirements["services"].append("nginx")
-        if "apache" in content_lower:
-            requirements["services"].append("apache")
-        if "docker" in content_lower or "container" in content_lower:
-            requirements["services"].append("docker")
-        if "redis" in content_lower:
-            requirements["services"].append("redis")
-        if "elasticsearch" in content_lower:
-            requirements["services"].append("elasticsearch")
-            
-        # Parse databases
-        if "postgresql" in content_lower or "postgres" in content_lower:
-            requirements["databases"].append("postgresql")
-        if "mysql" in content_lower:
-            requirements["databases"].append("mysql")
-        if "mongodb" in content_lower:
-            requirements["databases"].append("mongodb")
-            
-        # Parse infrastructure components
-        if "load balancer" in content_lower or "load balancing" in content_lower:
-            requirements["load_balancers"].append("nginx")
-            
-        # Parse monitoring requirements
-        requirements["monitoring"] = "monitoring" in content_lower or "metrics" in content_lower
-        
-        # Parse security requirements
-        if "ssl" in content_lower or "tls" in content_lower or "https" in content_lower:
-            requirements["ssl"] = True
-        if "firewall" in content_lower:
-            requirements["security"].append("firewall")
-        if "fail2ban" in content_lower or "intrusion" in content_lower:
-            requirements["security"].append("fail2ban")
-            
-        # Parse backup requirements
-        requirements["backup"] = "backup" in content_lower or "disaster recovery" in content_lower
         
         return requirements
 
+    def _detect_cloud_provider(self, content: str) -> str:
+        """Detect cloud provider from design document."""
+        content_lower = content.lower()
+        
+        if "aws" in content_lower or "amazon" in content_lower:
+            return "aws"
+        elif "azure" in content_lower or "microsoft" in content_lower:
+            return "azure"
+        elif "gcp" in content_lower or "google cloud" in content_lower:
+            return "gcp"
+        else:
+            return "unknown"
+
+    def _extract_region(self, content: str) -> str:
+        """Extract region information from design document."""
+        import re
+        
+        # AWS regions
+        aws_regions = re.findall(r'us-[a-z]+-\d+|eu-[a-z]+-\d+|ap-[a-z]+-\d+', content.lower())
+        if aws_regions:
+            return aws_regions[0]
+        
+        # Azure regions
+        azure_regions = re.findall(r'(east us|west us|north europe|west europe|southeast asia)', content.lower())
+        if azure_regions:
+            return azure_regions[0].replace(' ', '')
+        
+        # GCP regions
+        gcp_regions = re.findall(r'us-central\d+|us-east\d+|us-west\d+|europe-west\d+', content.lower())
+        if gcp_regions:
+            return gcp_regions[0]
+        
+        return "us-east-1"  # Default
+
+    def _extract_resources(self, content: str) -> Dict[str, Any]:
+        """Extract specific cloud resources from design document."""
+        content_lower = content.lower()
+        resources = {
+            "compute": [],
+            "storage": [],
+            "database": [],
+            "networking": [],
+            "security": [],
+            "analytics": [],
+            "serverless": []
+        }
+        
+        # Extract compute resources
+        if "ec2" in content_lower or "virtual machine" in content_lower:
+            resources["compute"].append("ec2" if "aws" in content_lower else "vm")
+        if "lambda" in content_lower:
+            resources["serverless"].append("lambda")
+        if "cloud functions" in content_lower:
+            resources["serverless"].append("cloud_functions")
+        if "azure functions" in content_lower:
+            resources["serverless"].append("azure_functions")
+        
+        # Extract storage resources
+        if "s3" in content_lower:
+            resources["storage"].append("s3")
+        if "blob storage" in content_lower:
+            resources["storage"].append("blob_storage")
+        if "cloud storage" in content_lower:
+            resources["storage"].append("cloud_storage")
+        
+        # Extract database resources
+        if "rds" in content_lower:
+            resources["database"].append("rds")
+        if "sql database" in content_lower:
+            resources["database"].append("sql_database")
+        if "cloud sql" in content_lower:
+            resources["database"].append("cloud_sql")
+        if "dynamodb" in content_lower:
+            resources["database"].append("dynamodb")
+        if "cosmosdb" in content_lower:
+            resources["database"].append("cosmosdb")
+        
+        return resources
+
+    def _extract_networking(self, content: str) -> Dict[str, Any]:
+        """Extract networking requirements from design document."""
+        content_lower = content.lower()
+        networking = {
+            "vpc_required": "vpc" in content_lower or "virtual network" in content_lower,
+            "subnets": [],
+            "load_balancers": [],
+            "dns": [],
+            "vpn": "vpn" in content_lower,
+            "nat_gateway": "nat" in content_lower
+        }
+        
+        # Extract load balancer types
+        if "application load balancer" in content_lower or "alb" in content_lower:
+            networking["load_balancers"].append("alb")
+        if "network load balancer" in content_lower or "nlb" in content_lower:
+            networking["load_balancers"].append("nlb")
+        if "application gateway" in content_lower:
+            networking["load_balancers"].append("application_gateway")
+        
+        return networking
+
+    def _extract_security(self, content: str) -> Dict[str, Any]:
+        """Extract security requirements from design document."""
+        content_lower = content.lower()
+        security = {
+            "encryption": "encryption" in content_lower,
+            "key_management": [],
+            "access_control": [],
+            "monitoring": [],
+            "compliance": []
+        }
+        
+        # Key management
+        if "kms" in content_lower:
+            security["key_management"].append("kms")
+        if "key vault" in content_lower:
+            security["key_management"].append("key_vault")
+        
+        # Access control
+        if "iam" in content_lower:
+            security["access_control"].append("iam")
+        if "rbac" in content_lower:
+            security["access_control"].append("rbac")
+        if "sso" in content_lower:
+            security["access_control"].append("sso")
+        
+        return security
+
+    def _extract_monitoring(self, content: str) -> Dict[str, Any]:
+        """Extract monitoring requirements from design document."""
+        content_lower = content.lower()
+        monitoring = {
+            "enabled": "monitoring" in content_lower or "observability" in content_lower,
+            "logging": [],
+            "metrics": [],
+            "alerting": []
+        }
+        
+        if "cloudwatch" in content_lower:
+            monitoring["logging"].append("cloudwatch")
+        if "azure monitor" in content_lower:
+            monitoring["logging"].append("azure_monitor")
+        if "stackdriver" in content_lower:
+            monitoring["logging"].append("stackdriver")
+        
+        return monitoring
+
+    def _extract_backup(self, content: str) -> Dict[str, Any]:
+        """Extract backup requirements from design document."""
+        content_lower = content.lower()
+        return {
+            "enabled": "backup" in content_lower or "disaster recovery" in content_lower,
+            "retention": self._extract_retention_period(content_lower),
+            "cross_region": "cross-region" in content_lower or "cross region" in content_lower
+        }
+
+    def _extract_scaling(self, content: str) -> Dict[str, Any]:
+        """Extract scaling requirements from design document."""
+        content_lower = content.lower()
+        return {
+            "auto_scaling": "auto scaling" in content_lower or "autoscaling" in content_lower,
+            "load_balancing": "load balancing" in content_lower,
+            "high_availability": "high availability" in content_lower or "multi-az" in content_lower
+        }
+
+    def _extract_compliance(self, content: str) -> list:
+        """Extract compliance requirements from design document."""
+        content_lower = content.lower()
+        compliance = []
+        
+        if "gdpr" in content_lower:
+            compliance.append("gdpr")
+        if "hipaa" in content_lower:
+            compliance.append("hipaa")
+        if "sox" in content_lower:
+            compliance.append("sox")
+        if "pci" in content_lower:
+            compliance.append("pci")
+        
+        return compliance
+
+    def _extract_retention_period(self, content: str) -> str:
+        """Extract backup retention period from design document."""
+        import re
+        
+        # Look for patterns like "30 days", "7 days", "1 year"
+        retention_pattern = r'(\d+)\s*(day|week|month|year)s?'
+        matches = re.findall(retention_pattern, content)
+        
+        if matches:
+            return f"{matches[0][0]} {matches[0][1]}s"
+        
+        return "30 days"  # Default
+
     def _generate_main_playbook(self, project_name: str, requirements: Dict[str, Any]) -> str:
         """Generate main Ansible playbook based on requirements."""
+        cloud_provider = requirements.get("cloud_provider", "azure")
+        
+        if cloud_provider == "azure":
+            return self._generate_azure_playbook(project_name, requirements)
+        elif cloud_provider == "aws":
+            return self._generate_aws_playbook(project_name, requirements)
+        elif cloud_provider == "gcp":
+            return self._generate_gcp_playbook(project_name, requirements)
+        else:
+            return self._generate_azure_playbook(project_name, requirements)
+
+    def _generate_azure_playbook(self, project_name: str, requirements: Dict[str, Any]) -> str:
+        """Generate Azure-specific Ansible playbook."""
         tasks = []
         
-        # Add service tasks based on requirements
-        for service in requirements.get("services", []):
-            if service == "nginx":
-                tasks.append("      - name: Install and configure Nginx")
-                tasks.append("        include_tasks: tasks/nginx.yml")
-            elif service == "apache":
-                tasks.append("      - name: Install and configure Apache")
-                tasks.append("        include_tasks: tasks/apache.yml")
-            elif service == "docker":
-                tasks.append("      - name: Install and configure Docker")
-                tasks.append("        include_tasks: tasks/docker.yml")
-            elif service == "redis":
-                tasks.append("      - name: Install and configure Redis")
-                tasks.append("        include_tasks: tasks/redis.yml")
-                
-        # Add database tasks
-        for db in requirements.get("databases", []):
-            if db == "postgresql":
-                tasks.append("      - name: Install and configure PostgreSQL")
-                tasks.append("        include_tasks: tasks/postgresql.yml")
-            elif db == "mysql":
-                tasks.append("      - name: Install and configure MySQL")
-                tasks.append("        include_tasks: tasks/mysql.yml")
-            elif db == "mongodb":
-                tasks.append("      - name: Install and configure MongoDB")
-                tasks.append("        include_tasks: tasks/mongodb.yml")
-                
-        # Add security tasks
-        for security in requirements.get("security", []):
-            if security == "firewall":
-                tasks.append("      - name: Configure firewall")
-                tasks.append("        include_tasks: tasks/firewall.yml")
-            elif security == "fail2ban":
-                tasks.append("      - name: Install and configure Fail2ban")
-                tasks.append("        include_tasks: tasks/fail2ban.yml")
-                
-        # Add monitoring if required
-        if requirements.get("monitoring", False):
-            tasks.append("      - name: Install monitoring tools")
-            tasks.append("        include_tasks: tasks/monitoring.yml")
-            
-        # Add backup if required
-        if requirements.get("backup", False):
-            tasks.append("      - name: Configure backup system")
-            tasks.append("        include_tasks: tasks/backup.yml")
+        # Add compute configuration
+        compute_resources = requirements.get("resources", {}).get("compute", [])
+        if "vm" in compute_resources:
+            tasks.append("      - name: Configure Azure Virtual Machine")
+            tasks.append("        include_tasks: tasks/azure_vm.yml")
         
-        tasks_content = "\n".join(tasks) if tasks else "      - name: Basic system setup\n        debug:\n          msg: 'No specific services configured'"
+        # Add storage configuration
+        storage_resources = requirements.get("resources", {}).get("storage", [])
+        if "blob_storage" in storage_resources:
+            tasks.append("      - name: Configure Azure Blob Storage")
+            tasks.append("        include_tasks: tasks/azure_storage.yml")
+        
+        # Add database configuration
+        database_resources = requirements.get("resources", {}).get("database", [])
+        if "sql_database" in database_resources:
+            tasks.append("      - name: Configure Azure SQL Database")
+            tasks.append("        include_tasks: tasks/azure_sql.yml")
+        
+        # Add security configuration
+        security_config = requirements.get("security", {})
+        if security_config.get("encryption", False):
+            tasks.append("      - name: Configure Azure Key Vault")
+            tasks.append("        include_tasks: tasks/azure_keyvault.yml")
+        
+        # Add monitoring configuration
+        monitoring_config = requirements.get("monitoring", {})
+        if monitoring_config.get("enabled", False):
+            tasks.append("      - name: Configure Azure Monitor")
+            tasks.append("        include_tasks: tasks/azure_monitor.yml")
+        
+        # Add backup configuration
+        backup_config = requirements.get("backup", {})
+        if backup_config.get("enabled", False):
+            tasks.append("      - name: Configure Azure Backup")
+            tasks.append("        include_tasks: tasks/azure_backup.yml")
+        
+        tasks_content = "\n".join(tasks) if tasks else "      - name: Basic Azure setup\n        debug:\n          msg: 'No specific Azure services configured'"
         
         return f"""---
-- name: Deploy {project_name} Infrastructure
+- name: Deploy {project_name} Infrastructure on Azure
   hosts: all
   become: yes
   
   vars:
     project_name: {project_name}
-    ssl_enabled: {str(requirements.get("ssl", False)).lower()}
+    cloud_provider: azure
+    region: {requirements.get("region", "eastus")}
+    
+  vars_files:
+    - vars/main.yml
+    - vars/azure.yml
     
   tasks:
 {tasks_content}
+"""
+
+    def _generate_aws_playbook(self, project_name: str, requirements: Dict[str, Any]) -> str:
+        """Generate AWS-specific Ansible playbook."""
+        tasks = []
+        
+        # Add compute configuration
+        compute_resources = requirements.get("resources", {}).get("compute", [])
+        if "ec2" in compute_resources:
+            tasks.append("      - name: Configure EC2 Instance")
+            tasks.append("        include_tasks: tasks/aws_ec2.yml")
+        
+        # Add storage configuration
+        storage_resources = requirements.get("resources", {}).get("storage", [])
+        if "s3" in storage_resources:
+            tasks.append("      - name: Configure S3 Bucket")
+            tasks.append("        include_tasks: tasks/aws_s3.yml")
+        
+        # Add database configuration
+        database_resources = requirements.get("resources", {}).get("database", [])
+        if "rds" in database_resources:
+            tasks.append("      - name: Configure RDS Database")
+            tasks.append("        include_tasks: tasks/aws_rds.yml")
+        
+        # Add security configuration
+        security_config = requirements.get("security", {})
+        if security_config.get("encryption", False):
+            tasks.append("      - name: Configure AWS KMS")
+            tasks.append("        include_tasks: tasks/aws_kms.yml")
+        
+        # Add monitoring configuration
+        monitoring_config = requirements.get("monitoring", {})
+        if monitoring_config.get("enabled", False):
+            tasks.append("      - name: Configure CloudWatch")
+            tasks.append("        include_tasks: tasks/aws_cloudwatch.yml")
+        
+        # Add backup configuration
+        backup_config = requirements.get("backup", {})
+        if backup_config.get("enabled", False):
+            tasks.append("      - name: Configure AWS Backup")
+            tasks.append("        include_tasks: tasks/aws_backup.yml")
+        
+        tasks_content = "\n".join(tasks) if tasks else "      - name: Basic AWS setup\n        debug:\n          msg: 'No specific AWS services configured'"
+        
+        return f"""---
+- name: Deploy {project_name} Infrastructure on AWS
+  hosts: all
+  become: yes
+  
+  vars:
+    project_name: {project_name}
+    cloud_provider: aws
+    region: {requirements.get("region", "us-east-1")}
     
-    - name: Ensure all services are started and enabled
-      systemd:
-        name: "{{{{ item }}}}"
-        state: started
-        enabled: yes
-      loop: {requirements.get("services", [])}
-      ignore_errors: yes
+  vars_files:
+    - vars/main.yml
+    - vars/aws.yml
+    
+  tasks:
+{tasks_content}
+"""
+
+    def _generate_gcp_playbook(self, project_name: str, requirements: Dict[str, Any]) -> str:
+        """Generate GCP-specific Ansible playbook."""
+        tasks = []
+        
+        # Add compute configuration
+        compute_resources = requirements.get("resources", {}).get("compute", [])
+        if "compute_instance" in compute_resources:
+            tasks.append("      - name: Configure GCP Compute Instance")
+            tasks.append("        include_tasks: tasks/gcp_compute.yml")
+        
+        # Add storage configuration
+        storage_resources = requirements.get("resources", {}).get("storage", [])
+        if "cloud_storage" in storage_resources:
+            tasks.append("      - name: Configure GCP Cloud Storage")
+            tasks.append("        include_tasks: tasks/gcp_storage.yml")
+        
+        # Add database configuration
+        database_resources = requirements.get("resources", {}).get("database", [])
+        if "cloud_sql" in database_resources:
+            tasks.append("      - name: Configure GCP Cloud SQL")
+            tasks.append("        include_tasks: tasks/gcp_sql.yml")
+        
+        # Add security configuration
+        security_config = requirements.get("security", {})
+        if security_config.get("encryption", False):
+            tasks.append("      - name: Configure GCP KMS")
+            tasks.append("        include_tasks: tasks/gcp_kms.yml")
+        
+        # Add monitoring configuration
+        monitoring_config = requirements.get("monitoring", {})
+        if monitoring_config.get("enabled", False):
+            tasks.append("      - name: Configure GCP Monitoring")
+            tasks.append("        include_tasks: tasks/gcp_monitoring.yml")
+        
+        # Add backup configuration
+        backup_config = requirements.get("backup", {})
+        if backup_config.get("enabled", False):
+            tasks.append("      - name: Configure GCP Backup")
+            tasks.append("        include_tasks: tasks/gcp_backup.yml")
+        
+        tasks_content = "\n".join(tasks) if tasks else "      - name: Basic GCP setup\n        debug:\n          msg: 'No specific GCP services configured'"
+        
+        return f"""---
+- name: Deploy {project_name} Infrastructure on GCP
+  hosts: all
+  become: yes
+  
+  vars:
+    project_name: {project_name}
+    cloud_provider: gcp
+    region: {requirements.get("region", "us-central1")}
+    
+  vars_files:
+    - vars/main.yml
+    - vars/gcp.yml
 """
 
     def _generate_inventory(self, requirements: Dict[str, Any]) -> str:
         """Generate Ansible inventory file based on requirements."""
+        cloud_provider = requirements.get("cloud_provider", "azure")
+        
+        if cloud_provider == "azure":
+            return self._generate_azure_inventory(requirements)
+        elif cloud_provider == "aws":
+            return self._generate_aws_inventory(requirements)
+        elif cloud_provider == "gcp":
+            return self._generate_gcp_inventory(requirements)
+        else:
+            return self._generate_azure_inventory(requirements)
+
+    def _generate_azure_inventory(self, requirements: Dict[str, Any]) -> str:
+        """Generate Azure-specific inventory."""
         return """[all:vars]
-ansible_user=ubuntu
+ansible_user=azureuser
 ansible_ssh_private_key_file=~/.ssh/id_rsa
 
-[webservers]
+[azure_vms]
+vm1 ansible_host=10.0.1.10
+vm2 ansible_host=10.0.1.11
+
+[azure_databases]
+sqldb1 ansible_host=sql-server.database.windows.net
+
+[azure_storage]
+storage1 ansible_host=storageaccount.blob.core.windows.net
+
+[production:children]
+azure_vms
+azure_databases
+azure_storage
+"""
+
+    def _generate_aws_inventory(self, requirements: Dict[str, Any]) -> str:
+        """Generate AWS-specific inventory."""
+        return """[all:vars]
+ansible_user=ec2-user
+ansible_ssh_private_key_file=~/.ssh/aws-key.pem
+
+[ec2_instances]
 web1 ansible_host=10.0.1.10
 web2 ansible_host=10.0.1.11
 
-[databases]
-db1 ansible_host=10.0.2.10
+[rds_databases]
+db1 ansible_host=mydb.cluster-xyz.us-west-2.rds.amazonaws.com
 
-[monitoring]
-monitor1 ansible_host=10.0.3.10
+[s3_storage]
+s3bucket ansible_host=s3.amazonaws.com
 
 [production:children]
-webservers
-databases
-monitoring
+ec2_instances
+rds_databases
+s3_storage
+"""
+
+    def _generate_gcp_inventory(self, requirements: Dict[str, Any]) -> str:
+        """Generate GCP-specific inventory."""
+        return """[all:vars]
+ansible_user=gcp-user
+ansible_ssh_private_key_file=~/.ssh/gcp-key
+
+[gcp_instances]
+instance1 ansible_host=10.0.1.10
+instance2 ansible_host=10.0.1.11
+
+[gcp_databases]
+cloudsql1 ansible_host=sql-instance.region.gcp.project.com
+
+[gcp_storage]
+bucket1 ansible_host=storage.googleapis.com
+
+[production:children]
+gcp_instances
+gcp_databases
+gcp_storage
 """
 
     def _generate_task_files(self, ansible_dir: str, requirements: Dict[str, Any]) -> None:
