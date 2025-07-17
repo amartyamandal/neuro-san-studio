@@ -36,7 +36,7 @@ def test_hocon_integration():
     try:
         if main_hocon.exists():
             # Parse main HOCON file
-            config = ConfigFactory.parse_file(str(main_hocon), resolve=True)
+            config = ConfigFactory.parse_file(str(main_hocon))
             print("  ✅ Main HOCON file parses successfully")
             
             # Check structure
@@ -48,26 +48,21 @@ def test_hocon_integration():
                 
             # Check if tools array is populated
             if "tools" in config:
-                tools_raw = config["tools"]
-                # Ensure we have a Python list; otherwise re-parse the tools file
-                if isinstance(tools_raw, list):
-                    tools_list = tools_raw
-                else:
-                    tools_list = ConfigFactory.parse_file(str(tools_file), resolve=True)
-                tools_count = len(tools_list)
+                tools_count = len(config["tools"])
                 print(f"  ✅ Tools array found with {tools_count} items")
                 
                 # Check for key agent types
                 agent_names = []
                 tool_names = []
                 
-                for tool in tools_list:
+                for tool in config["tools"]:
                     if isinstance(tool, dict) and "name" in tool:
                         tool_name = tool["name"]
                         if "function" in tool and tool["function"] == "aaosa_call":
                             agent_names.append(tool_name)
                         else:
                             tool_names.append(tool_name)
+                
                 print(f"  ✅ Found {len(agent_names)} agents: {', '.join(agent_names)}")
                 print(f"  ✅ Found {len(tool_names)} tools: {', '.join(tool_names[:5])}{'...' if len(tool_names) > 5 else ''}")
                 
@@ -86,7 +81,7 @@ def test_hocon_integration():
     try:
         if tools_file.exists():
             # Parse tools file directly
-            tools_config = ConfigFactory.parse_file(str(tools_file), resolve=True)
+            tools_config = ConfigFactory.parse_file(str(tools_file))
             print("  ✅ Tools file parses successfully")
             
             if isinstance(tools_config, list):
@@ -135,7 +130,7 @@ def test_hocon_integration():
     # Test JSON serialization (end-to-end validation)
     print(f"\n🔄 End-to-End Validation:")
     try:
-        config = ConfigFactory.parse_file(str(main_hocon), resolve=True)
+        config = ConfigFactory.parse_file(str(main_hocon))
         
         # Convert to JSON to test complete serialization
         json_str = json.dumps(config, indent=2, default=str)
