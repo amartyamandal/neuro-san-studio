@@ -1,0 +1,248 @@
+{
+    "llm_config": {
+        "model_name": "gpt-4o",
+    },
+    "commondefs": {
+        "replacement_strings": {
+            "instructions_prefix": """
+            You are a cloud infrastructure provider assistant.
+            Only work on infrastructure-related requests.
+            Do not mention what you can NOT do. Only mention what you can do.
+            """,
+            "aaosa_instructions": """
+When you receive an inquiry, you will:
+    1. Call your tools to determine which down-chain agents are responsible for all or part of it.
+    2. Ask these down-chain agents what they need to handle their part of the inquiry.
+    3. Delegate the inquiry and requirements to the appropriate down-chain agents.
+    4. Compile their responses and return the final response.
+            """
+        },
+        "replacement_values": {
+            "aaosa_call": {
+                "description": "Depending on the mode, returns a natural language string in response.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "inquiry": {
+                            "type": "string",
+                            "description": "The inquiry"
+                        },
+                        "mode": {
+                            "type": "string",
+                            "description": """
+indicates whether the agent is being asked to determine if the inquiry belongs to it
+in its entirety or in part. or if it is being asked to provide requirements to fulfill
+the inquiry, if any. or if it is being asked to respond to the inquiry.
+                            """
+                        }
+                    },
+                    "required": [
+                        "inquiry",
+                        "mode"
+                    ]
+                }
+            },
+            "aaosa_command": "Explain if you can respond to all or parts of the inquiry and what you need in order to respond, if anything."
+        }
+    },
+    "tools": [
+        {
+            "name": "Cloud Infrastructure Assistant",
+            "function": {
+                "description": """
+                Your name is Cloud Infrastructure Assistant. You help with cloud infrastructure design and deployment.
+                """
+            },
+            "instructions": """
+{instructions_prefix}
+You are the top-level agent responsible for handling cloud infrastructure inquiries.
+{aaosa_instructions}
+When interacting with the user, act as the single point of interaction.
+            """,
+            "tools": ["Manager"]
+        },
+        {
+            "name": "Manager",
+            "function": "aaosa_call",
+            "instructions": """
+{instructions_prefix}
+Project Manager for cloud infrastructure projects.
+{aaosa_instructions}
+            """,
+            "command": "{aaosa_command}",
+            "tools": ["Architect", "Engineer", "ProjectPlanCreator"]
+        },
+        {
+            "name": "Architect",
+            "function": "aaosa_call",
+            "instructions": """
+{instructions_prefix}
+Cloud architect who designs infrastructure.
+{aaosa_instructions}
+            """,
+            "command": "{aaosa_command}",
+            "tools": ["DesignDocumentCreator", "CommitToMemory", "RecallMemory"]
+        },
+        {
+            "name": "DesignDocumentCreator",
+            "function": {
+                "description": "Create detailed infrastructure design documents based on architecture specifications.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "project_details": {"type": "string", "description": "Project details and requirements"},
+                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"},
+                        "use_defaults": {"type": "boolean", "description": "Use default values for missing sections"}
+                    },
+                    "required": ["project_details", "timestamp"]
+                }
+            },
+            "class": "design_document_creator.DesignDocumentCreator"
+        },
+        {
+            "name": "ProjectPlanCreator",
+            "function": {
+                "description": "Create project plans with task breakdowns and timelines for infrastructure projects.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"},
+                        "design_path": {"type": "string", "description": "Path to design.md file to read"}
+                    },
+                    "required": ["timestamp"]
+                }
+            },
+            "class": "project_plan_creator.ProjectPlanCreator"
+        },
+        {
+            "name": "Engineer",
+            "function": "aaosa_call",
+            "instructions": """
+{instructions_prefix}
+DevOps engineer who implements infrastructure code.
+{aaosa_instructions}
+            """,
+            "command": "{aaosa_command}",
+            "tools": ["TerraformBuilder", "CloudFormationBuilder", "ARMBuilder", "AnsibleBuilder", "ChefBuilder", "PuppetBuilder", "CommitToMemory", "RecallMemory"]
+        },
+        {
+            "name": "TerraformBuilder",
+            "function": {
+                "description": "Generate Terraform infrastructure code based on design specifications.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "design_path": {"type": "string", "description": "Path to the design.md file to implement"},
+                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"}
+                    },
+                    "required": ["design_path", "timestamp"]
+                }
+            },
+            "class": "terraform_builder.TerraformBuilder"
+        },
+        {
+            "name": "AnsibleBuilder",
+            "function": {
+                "description": "Generate Ansible configuration code based on design specifications.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "design_path": {"type": "string", "description": "Path to the design.md file to implement"},
+                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"}
+                    },
+                    "required": ["design_path", "timestamp"]
+                }
+            },
+            "class": "ansible_builder.AnsibleBuilder"
+        },
+        {
+            "name": "CloudFormationBuilder",
+            "function": {
+                "description": "Generate AWS CloudFormation templates based on design specifications.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "design_path": {"type": "string", "description": "Path to the design.md file to implement"},
+                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"}
+                    },
+                    "required": ["design_path", "timestamp"]
+                }
+            },
+            "class": "cloudformation_builder.CloudFormationBuilder"
+        },
+        {
+            "name": "ARMBuilder",
+            "function": {
+                "description": "Generate Azure ARM templates based on design specifications.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "design_path": {"type": "string", "description": "Path to the design.md file to implement"},
+                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"}
+                    },
+                    "required": ["design_path", "timestamp"]
+                }
+            },
+            "class": "arm_builder.ARMBuilder"
+        },
+        {
+            "name": "ChefBuilder",
+            "function": {
+                "description": "Generate Chef cookbooks and recipes based on design specifications.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "design_path": {"type": "string", "description": "Path to the design.md file to implement"},
+                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"}
+                    },
+                    "required": ["design_path", "timestamp"]
+                }
+            },
+            "class": "chef_builder.ChefBuilder"
+        },
+        {
+            "name": "PuppetBuilder",
+            "function": {
+                "description": "Generate Puppet manifests and modules based on design specifications.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "design_path": {"type": "string", "description": "Path to the design.md file to implement"},
+                        "timestamp": {"type": "string", "description": "Project timestamp in MMDDYYYYHHMMSS format"}
+                    },
+                    "required": ["design_path", "timestamp"]
+                }
+            },
+            "class": "puppet_builder.PuppetBuilder"
+        },
+        {
+            "name": "CommitToMemory",
+            "function": {
+                "description": "Store project information in memory.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "topic": {"type": "string", "description": "Memory topic"},
+                        "new_fact": {"type": "string", "description": "Information to store"}
+                    },
+                    "required": ["topic", "new_fact"]
+                }
+            },
+            "class": "kwik_agents.commit_to_memory.CommitToMemory"
+        },
+        {
+            "name": "RecallMemory",
+            "function": {
+                "description": "Retrieve stored information from memory.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "topic": {"type": "string", "description": "Memory topic to recall"}
+                    },
+                    "required": ["topic"]
+                }
+            },
+            "class": "kwik_agents.recall_memory.RecallMemory"
+        }
+    ]
+}

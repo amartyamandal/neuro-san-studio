@@ -13,6 +13,7 @@
     # Currently we list each hocon file we want to serve as a key with a boolean value.
     # Eventually we might have a dictionary value with server specifications for each.
     "hello_world.hocon": true,
+    "cloud_infrastructure_provider.hocon": true,
     "insurance_underwriting_agents.hocon": true,
     "airline_policy.hocon": true,
     "advanced_calculator.hocon": true,
@@ -63,6 +64,6 @@
     "a2a_research_report.hocon": false,
 
     "LinkedInJobSeekerSupportNetwork.hocon": true,
-    "cloud_landing_zone_provider.hocon": true
+    "cloud_infrastructure_provider.hocon": true
 
 }
