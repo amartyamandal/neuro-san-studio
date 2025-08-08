@@ -26,6 +26,16 @@
         },
     },
     "tools": [
+        # This first agent definition is regarded as the "Front Man", which
+        # does all the talking to the outside world/client.
+        # It is identified as such because it is either:
+        #   A) The only one with no parameters in his function definition,
+        #      and therefore he needs to talk to the outside world to get things rolling.
+        #   B) The first agent listed, regardless of function parameters.
+        #
+        # Some disqualifications from being a front man:
+        #   1) Cannot use a CodedTool "class" definition
+        #   2) Cannot use a Tool "toolbox" definition
         {
             "name": "agent_network_designer",
             "function": {
@@ -46,9 +56,7 @@ relevant workflows and responsible nodes. Call your network_generator tool for t
             """,
             "allow": {
                 "to_upstream": {
-                    "sly_data": {
-                        "AutomaticallyDesignedAgentNetwork": true,
-                    }
+                    "sly_data": ["AutomaticallyDesignedAgentNetwork", "agent_name"]
                 }
             },
            "tools": ["network_generator", "query_generator", "instruction_refiner", "produce_agent_network_hocon"]

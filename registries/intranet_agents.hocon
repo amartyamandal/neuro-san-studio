@@ -66,8 +66,7 @@ the inquiry, if any. or if it is being asked to respond to the inquiry.
 
             "function": {
 
-                # When there are no function parameters to the front-man,
-                # its description acts as an initial prompt. 
+                # The description acts as an initial prompt. 
 
                 "description": "I can help you with your intranet needs."
             },

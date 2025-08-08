@@ -17,7 +17,7 @@
 # how you want, search for "ENV AGENT_" in this file.
 
 # Stage 1: Set python image as base image
-FROM python:3.12-slim AS builder
+FROM python:3.13-slim AS builder
 
 # Set the shell and options per hadolint recommendations
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -47,7 +47,7 @@ RUN if [ -f ${APP_SOURCE}/requirements.txt ]; \
 WORKDIR /
 
 # Stage 2: Final Stage - Use a slim Python image
-FROM python:3.12-slim AS final
+FROM python:3.13-slim AS final
 
 # Set the shell and options in each FROM section per hadolint recommendations
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -102,7 +102,7 @@ WORKDIR ${APP_SOURCE}
 
 # RUN echo "$(pip show neuro-san | grep Location | awk '{print $2}')"
 # This value below comes from the above RUN command. Cannot set ENV vars in Dockerfiles based on shell output.
-ENV PACKAGE_INSTALL=/usr/local/lib/python3.12/site-packages
+ENV PACKAGE_INSTALL=/usr/local/lib/python3.13/site-packages
 ENV APP_ENTRYPOINT=${APP_SOURCE}/deploy/entrypoint.sh
 
 #
@@ -114,7 +114,7 @@ ENV PYTHONPATH=${APP_SOURCE}
 
 # Where to find the tool registry manifest file which lists all the agent hocon
 # files to serve up from this server instance.
-ENV AGENT_MANIFEST_FILE=${APP_SOURCE}/registries/manifest.hocon
+ENV AGENT_MANIFEST_FILE=${APP_SOURCE}/registries/manifest_deploy.hocon
 
 # An llm_info hocon file with user-provided llm descriptions that are to be used
 # in addition to the neuro-san defaults.

@@ -2,22 +2,56 @@
 
 ## Using the Makefile
 
-This repository includes a Makefile with several useful commands to streamline development tasks. **Note: These Makefile commands are designed for macOS and Unix-like systems and will not work directly on Windows.**
+This repository includes a Makefile with several useful commands to streamline development tasks.
+**Note: These Makefile commands are designed for macOS and Unix-like systems and will not work directly on Windows.**
 
 - `make venv` - Creates a virtual environment in the `./venv` directory if it doesn't already exist
 - `make install` - Creates the virtual environment (if needed) and installs all dependencies including build dependencies
-- `make activate` - Checks if the virtual environment exists and either provides activation instructions (if it exists) or suggests running `make install` (if it doesn't)
+- `make activate` - Checks if the virtual environment exists and either provides activation instructions (if it exists)
+or suggests running `make install` (if it doesn't)
 - `make lint` - Runs code formatting and linting tools (isort, black, flake8) on the source code
 - `make lint-tests` - Runs code formatting and linting tools on the test code
 - `make test` - Runs lint and lint-tests, then executes the tests with pytest and generates coverage reports
 
-These Makefile commands provide a convenient alternative to the manual steps described in the Installation section for macOS users. Windows users should follow the manual installation instructions instead.
+These Makefile commands provide a convenient alternative to the manual steps described in the Installation section for
+macOS users. Windows users should follow the manual installation instructions instead.
+
+### Note on Markdown Linting
+
+We use [pymarkdown](https://pymarkdown.readthedocs.io/en/latest/) to run linting on .md files.
+`pymarkdown` can be configured via `.pymarkdown.yaml` located in the projects top level folder. See
+this [page](https://pymarkdown.readthedocs.io/en/latest/rules/) for all the configuration options.
+`pymarkdown` is installed in the virtual environment as part of the build dependency requirements
+specified in `build-requirements.txt`.
+
+You can run `pymarkdown` in two ways:
+
+<!-- pyml disable blanks-around-fences -->
+- Using an installed version of `pymarkdown`
+
+    - ```bash
+      pymarkdown --config ./.pymarkdownlint.yaml scan ./docs ./README.md
+      ```
+
+    - The `--config` flag is used to pass in a configuration file to `pymarkdownlint`
+    - To see all the options, run the following command:
+
+    ```bash
+    pymarkdown --help
+    ```
+
+<!-- pyml enable blanks-around-fences -->
+- Using Make
+
+    - `make lint`
 
 ## Python Project Configuration
 
-This project uses `pyproject.toml` for configuration of various Python development tools. This modern approach centralizes tool configurations in a single file instead of using separate configuration files for each tool.
+This project uses `pyproject.toml` for configuration of various Python development tools. This modern approach
+centralizes tool configurations in a single file instead of using separate configuration files for each tool.
 
-These configurations are automatically applied when running the relevant Makefile commands (`make lint`, `make lint-tests`, `make test`).
+These configurations are automatically applied when running the relevant Makefile commands (`make lint`,
+`make lint-tests`, `make test`).
 
 ## Contribution Workflow
 

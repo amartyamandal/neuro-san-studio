@@ -25,23 +25,35 @@ from dotenv import load_dotenv
 class NeuroSanRunner:
     """Command-line tool to run the Neuro SAN server and web client."""
 
+    # pylint: disable=too-many-instance-attributes
     def __init__(self):
         """Initialize configuration and parse CLI arguments."""
         self.is_windows = os.name == "nt"
+        self.root_dir = os.path.dirname(os.path.abspath(__file__))
+        self.logs_dir = os.path.join(self.root_dir, "logs")
+        self.thinking_file = os.path.join(self.logs_dir, "agent_thinking.txt")
+        self.thinking_dir = os.path.join(self.logs_dir, "thinking_dir")
+        print(f"Root directory: {self.root_dir}")
 
         # Load environment variables from .env file
-        self.root_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # self.root_dir = os.getcwd()
-        print(f"Root directory: {self.root_dir}")
         self.load_env_variables()
 
-        thinking_file = "C:\\tmp\\agent_thinking.txt" if self.is_windows else "/tmp/agent_thinking.txt"
+        # Preflight: verify neuro_san package is importable so we fail fast with guidance
+        try:
+            __import__("neuro_san")  # type: ignore
+        except ModuleNotFoundError as exc:  # pragma: no cover - startup path
+            print(
+                "[FATAL] Required package 'neuro_san' not found. Install dependencies first: '\n"
+                "  pip install -r requirements.txt\n"
+                "If already installed, ensure the correct virtual environment is active."
+            )
+            raise SystemExit(1) from exc
 
         # Default Configuration
         self.args: Dict[str, Any] = {
             "server_host": os.getenv("NEURO_SAN_SERVER_HOST", "localhost"),
-            "server_port": int(os.getenv("NEURO_SAN_SERVER_PORT", "30013")),
+            "server_grpc_port": int(os.getenv("NEURO_SAN_SERVER_GRPC_PORT", "30011")),
+            "server_http_port": int(os.getenv("NEURO_SAN_SERVER_HTTP_PORT", "8080")),
             "server_connection": str(os.getenv("NEURO_SAN_SERVER_CONNECTION", "grpc")),
             "manifest_update_period_seconds": int(os.getenv("AGENT_MANIFEST_UPDATE_PERIOD_SECONDS", "5")),
             "default_sly_data": str(os.getenv("DEFAULT_SLY_DATA", "")),
@@ -51,17 +63,22 @@ class NeuroSanRunner:
             "vite_api_protocol": os.getenv("VITE_API_PROTOCOL", "http"),
             "vite_ws_protocol": os.getenv("VITE_WS_PROTOCOL", "ws"),
             "neuro_san_web_client_port": int(os.getenv("NEURO_SAN_WEB_CLIENT_PORT", "5003")),
-            "thinking_file": os.getenv("THINKING_FILE", thinking_file),
+            "thinking_file": os.getenv("THINKING_FILE", self.thinking_file),
+            "thinking_dir": os.getenv("THINKING_DIR", self.thinking_dir),
             # Ensure all paths are resolved relative to `self.root_dir`
             "agent_manifest_file": os.getenv(
                 "AGENT_MANIFEST_FILE", os.path.join(self.root_dir, "registries", "manifest.hocon")
             ),
             "agent_tool_path": os.getenv("AGENT_TOOL_PATH", os.path.join(self.root_dir, "coded_tools")),
-            "logs_dir": os.path.join(self.root_dir, "logs"),
+            "agent_toolbox_info_file": os.getenv(
+                "AGENT_TOOLBOX_INFO_FILE", os.path.join(self.root_dir, "toolbox", "toolbox_info.hocon")
+            ),
+            "logs_dir": self.logs_dir,
         }
 
         # Ensure logs directory exists
-        os.makedirs("logs", exist_ok=True)
+        os.makedirs(self.logs_dir, exist_ok=True)
+        os.makedirs(self.thinking_dir, exist_ok=True)
 
         # Parse command-line arguments
         self.args.update(self.parse_args())
@@ -91,7 +108,16 @@ class NeuroSanRunner:
             "--server-host", type=str, default=self.args["server_host"], help="Host address for the Neuro SAN server"
         )
         parser.add_argument(
-            "--server-port", type=int, default=self.args["server_port"], help="Port number for the Neuro SAN server"
+            "--server-grpc-port",
+            type=int,
+            default=self.args["server_grpc_port"],
+            help="Port number for the Neuro SAN server grpc endpoint",
+        )
+        parser.add_argument(
+            "--server-http-port",
+            type=int,
+            default=self.args["server_http_port"],
+            help="Port number for the Neuro SAN server http endpoint",
         )
         parser.add_argument(
             "--nsflow-port",
@@ -143,16 +169,22 @@ class NeuroSanRunner:
         os.environ["PYTHONPATH"] = self.root_dir
         os.environ["AGENT_MANIFEST_FILE"] = self.args["agent_manifest_file"]
         os.environ["AGENT_TOOL_PATH"] = self.args["agent_tool_path"]
+        os.environ["AGENT_TOOLBOX_INFO_FILE"] = self.args["agent_toolbox_info_file"]
         os.environ["NEURO_SAN_SERVER_CONNECTION"] = self.args["server_connection"]
         os.environ["AGENT_MANIFEST_UPDATE_PERIOD_SECONDS"] = str(self.args["manifest_update_period_seconds"])
         print(f"PYTHONPATH set to: {os.environ['PYTHONPATH']}")
         print(f"AGENT_MANIFEST_FILE set to: {os.environ['AGENT_MANIFEST_FILE']}")
         print(f"AGENT_TOOL_PATH set to: {os.environ['AGENT_TOOL_PATH']}")
+        print(f"AGENT_TOOLBOX_INFO_FILE set to: {os.environ['AGENT_TOOLBOX_INFO_FILE']}")
         print(f"NEURO_SAN_SERVER_CONNECTION set to: {os.environ['NEURO_SAN_SERVER_CONNECTION']}")
         print(f"AGENT_MANIFEST_UPDATE_PERIOD_SECONDS set to: {os.environ['AGENT_MANIFEST_UPDATE_PERIOD_SECONDS']}\n")
 
         # Client-only env variables
         if not self.args["server_only"]:
+            os.environ["THINKING_FILE"] = self.args["thinking_file"]
+            os.environ["THINKING_DIR"] = self.args["thinking_dir"]
+            print(f"THINKING_FILE set to: {os.environ['THINKING_FILE']}")
+            print(f"THINKING_DIR set to: {os.environ['THINKING_DIR']}")
             if self.args["use_flask_web_client"]:
                 os.environ["NEURO_SAN_WEB_CLIENT_PORT"] = str(self.args["web_client_port"])
                 print(f"NEURO_SAN_WEB_CLIENT_PORT set to: {os.environ['NEURO_SAN_WEB_CLIENT_PORT']}")
@@ -171,10 +203,12 @@ class NeuroSanRunner:
         # Server-only env variables
         if not self.args["client_only"]:
             os.environ["NEURO_SAN_SERVER_HOST"] = self.args["server_host"]
-            os.environ["NEURO_SAN_SERVER_PORT"] = str(self.args["server_port"])
+            os.environ["NEURO_SAN_SERVER_GRPC_PORT"] = str(self.args["server_grpc_port"])
+            os.environ["NEURO_SAN_SERVER_HTTP_PORT"] = str(self.args["server_http_port"])
 
             print(f"NEURO_SAN_SERVER_HOST set to: {os.environ['NEURO_SAN_SERVER_HOST']}")
-            print(f"NEURO_SAN_SERVER_PORT set to: {os.environ['NEURO_SAN_SERVER_PORT']}\n")
+            print(f"NEURO_SAN_SERVER_GRPC_PORT set to: {os.environ['NEURO_SAN_SERVER_GRPC_PORT']}\n")
+            print(f"NEURO_SAN_SERVER_HTTP_PORT set to: {os.environ['NEURO_SAN_SERVER_HTTP_PORT']}\n")
 
         print("\n" + "=" * 50 + "\n")
 
@@ -242,12 +276,15 @@ class NeuroSanRunner:
             sys.executable,
             "-u",
             "-m",
-            "neuro_san.service.agent_main_loop",
+            "neuro_san.service.main_loop.server_main_loop",
             "--port",
-            str(self.args["server_port"]),
+            str(self.args["server_grpc_port"]),
+            "--http_port",
+            str(self.args["server_http_port"]),
         ]
         self.server_process = self.start_process(command, "NeuroSan", "logs/server.log")
-        print("NeuroSan server started on port: ", self.args["server_port"])
+        print("NeuroSan server grpc started on port: ", self.args["server_grpc_port"])
+        print("NeuroSan server http started on port: ", self.args["server_http_port"])
 
     def start_nsflow(self):
         """Start nsflow client."""
@@ -279,7 +316,7 @@ class NeuroSanRunner:
             "--server-host",
             self.args["server_host"],
             "--server-port",
-            str(self.args["server_port"]),
+            str(self.args["server_grpc_port"]),
             "--web-client-port",
             str(self.args["web_client_port"]),
             "--thinking-file",
@@ -339,8 +376,10 @@ class NeuroSanRunner:
                 port_conflicts.append(f"NSFlow client port {self.args['nsflow_port']} is already in use.")
 
         if not self.args["client_only"] and self.args["server_host"] == "localhost":
-            if self.is_port_open(self.args["server_host"], self.args["server_port"]):
-                port_conflicts.append(f"Neuro-San server port {self.args['server_port']} is already in use.")
+            if self.is_port_open(self.args["server_host"], self.args["server_grpc_port"]):
+                port_conflicts.append(f"Neuro-San server grpc port {self.args['server_grpc_port']} is already in use.")
+            if self.is_port_open(self.args["server_host"], self.args["server_http_port"]):
+                port_conflicts.append(f"Neuro-San server http port {self.args['server_http_port']} is already in use.")
 
         if self.args.get("use_flask_web_client"):
             if self.is_port_open("localhost", self.args["neuro_san_web_client_port"]):

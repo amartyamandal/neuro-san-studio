@@ -70,8 +70,7 @@ the inquiry, if any. or if it is being asked to respond to the inquiry.
             # distinguishing it from the rest of the tools.
 
             "function": {
-                # When there are no function parameters to the front-man,
-                # its description acts as an initial prompt. 
+                # The description acts as an initial prompt. 
 
                 "description": """
                 Your name is Airline 360 Assistant. You're in charge of Airline's help desk, answering 

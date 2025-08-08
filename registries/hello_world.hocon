@@ -9,6 +9,10 @@
 # neuro-san SDK Software in commercial settings.
 #
 # END COPYRIGHT
+
+# The schema specifications for this file are documented here:
+# https://github.com/cognizant-ai-lab/neuro-san/blob/main/docs/agent_hocon_reference.md
+
 {
     "llm_config": {
         "model_name": "gpt-4o",
@@ -18,9 +22,16 @@
         # How they are linked and call each other is defined within their
         # own specs.  This could be a graph, potentially even with cycles.
 
-        # This first guy is the "Front Man".  He is identified as such because
-        # he is the only one with no parameters in his function definition,
-        # and therefore he needs to talk to the outside world to get things rolling.
+        # This first agent definition is regarded as the "Front Man", which
+        # does all the talking to the outside world/client.
+        # It is identified as such because it is either:
+        #   A) The only one with no parameters in his function definition,
+        #      and therefore he needs to talk to the outside world to get things rolling.
+        #   B) The first agent listed, regardless of function parameters.
+        #
+        # Some disqualifications from being a front man:
+        #   1) Cannot use a CodedTool "class" definition
+        #   2) Cannot use a Tool "toolbox" definition
         {
             "name": "announcer",
 
@@ -30,9 +41,7 @@
 
             "function": {
 
-                # When there are no function parameters to the front-man,
-                # its description acts as an initial prompt. 
-
+                # The description acts as an initial prompt. 
                 "description": """
 I can help you to make a terse anouncement.
 Tell me what your target audience is, and what sentiment you would like to relate.
@@ -41,14 +50,14 @@ Tell me what your target audience is, and what sentiment you would like to relat
 
             "instructions": """
 You are an author of terse announcements.
-You will be asked to help writing an extremely terse announcement on behalf of a person or organization.
+You will be asked to help writing the shortest possible announcement on behalf of a person or organization.
 You will ascertain the intended sentiment of the desired announcement
 as well as who the target audience is for the announcement
 and come up with something as short as possible to express the sentiment to the audience,
 while never divulging the identity or nature of who has requested the announcement.
-Then, after you have come up with what to say, you will always call a function
+Then, after you have come up with what to say, you will always call the synonymizer tool
 to make the announcement as simple and concise as possible, yet eloquent.
-The synonymizer will need a name for the speech.
+Never add any embellishment or commentary to your answer.
 """,
             "tools": ["synonymizer"]
         },
@@ -77,9 +86,8 @@ The synonymizer will need a name for the speech.
             "instructions": """
 You are a thesaurus.
 You will be handed an arbitrary number of words in a particular order
-and for each word in the sequence, you will find a synonym for it
-that is only 5 letters long.
-If no synonym exists for a word in the sequence, only then may you simply use the original word.
+and for each word in the sequence, you will find a synonym for it that must only be 5 letters long.
+If no such synonym exists for a word in the sequence, only then may you simply use the original word.
 Your output will be words or phrases that match the original form and order of the input,
 except the synonyms will replace the original input words.
 There will be no elaboration or additional commentary.

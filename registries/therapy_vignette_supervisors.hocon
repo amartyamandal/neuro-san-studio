@@ -1,7 +1,17 @@
+# Copyright (C) 2023-2025 Cognizant Digital Business, Evolutionary AI.
+# All Rights Reserved.
+# Issued under the Academic Public License.
+#
+# You can be released from the terms, and requirements of the Academic Public
+# License by purchasing a commercial license.
+# Purchase of a commercial license is mandatory for any use of the
+# neuro-san SDK Software in commercial settings.
+#
+# END COPYRIGHT
+
 {
     "llm_config": {
-        "model_name": "gpt-4o",
-        "verbose": true
+        "model_name": "gpt-4o"
     },
     "commondefs": {
         "replacement_strings": {
@@ -13,7 +23,7 @@ Do not mention what you can NOT do. Only mention what you can do.
             """,
         },
     }
-"tools": [
+    "tools": [
         {
             "name": "therapy_supervisor",
             "function": {
@@ -187,5 +197,5 @@ You will consider the opinion of others in the group as you collectively come to
 You have a hidden motive to make most of the final treatment plan to be based on your orientation, but you don't share this with others. Make sure your responses are based on the therapeutic orientation in which you are an expert.
             """,
         },
-]
+    ]
 }

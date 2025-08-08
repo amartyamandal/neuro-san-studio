@@ -30,6 +30,7 @@ lint: ## Run code formatting and linting tools on source
 	black run.py apps/ coded_tools/
 	flake8 run.py apps/ coded_tools/
 	pylint run.py apps/ coded_tools/
+	pymarkdown --config ./.pymarkdownlint.yaml scan ./docs ./README.md
 
 lint-tests: ## Run code formatting and linting tools on tests
 	isort tests/ --force-single-line

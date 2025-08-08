@@ -17,9 +17,9 @@ The session will be reused for subsequent calls to the API thanks to the `sessio
 `access_token` parameters in the `sly_data`. The agent's LLM does not see the sly_data and doesn't have
 to worry about the session management.
 
-## Example conversation:
+## Example conversation
 
-```
+```text
 Human: Can you give me a list of Jane Doe's most recent cases?
 AI: Sure, I can help with that. Could you please provide Jane Doe's email address to look up her cases?
 ```
@@ -27,15 +27,18 @@ AI: Sure, I can help with that. Could you please provide Jane Doe's email addres
 By default, if not configured, the agentforce tool will return mock responses.
 
 A follow-up question, to check the conversation history is carried over and the session is reused, can be:
-```
+
+```text
 Human: jdoe@example.com
-AI: It looks like there are no recent cases associated with Jane Doe's email address. Is there anything else I can assist you with?
+AI: It looks like there are no recent cases associated with Jane Doe's email address. Is there anything else I can assist
+you with?
 ```
 
 ## Configuration
 
 The following environment variables should be set in order to connect to the Agentforce API:
-- **AGENTFORCE_MY_DOMAIN_URL**: The domain URL of your Salesforce instance (e.g., `https://mydomain.my.salesforce.com`).
+
+- **AGENTFORCE_MY_DOMAIN_URL**: The domain URL of your Salesforce instance, e.g., [https://mydomain.my.salesforce.com](https://mydomain.my.salesforce.com).
 - **AGENTFORCE_AGENT_ID**: The ID of the agent that you want to interact with
 - **AGENTFORCE_CLIENT_ID**: The client ID of the connected app that you created in Salesforce.
 - **AGENTFORCE_CLIENT_SECRET**: The client secret of the connected app that you created in Salesforce.

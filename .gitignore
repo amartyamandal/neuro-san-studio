@@ -25,6 +25,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+logs/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -176,3 +177,7 @@ cython_debug/
 .DS_Store
 /coded_tools/PentOps/vector_store/
 output/
+
+# Google credentials
+credentials.json
+token.json

@@ -11,8 +11,7 @@
 # END COPYRIGHT
 {
     "llm_config": {
-        "class": "openai",
-        "use_model_name": "gpt-4.1-2025-04-14",
+        "model_name": "gpt-4.1-2025-04-14",
     },
     "max_iterations": 40000,
     "max_execution_seconds": 6000,

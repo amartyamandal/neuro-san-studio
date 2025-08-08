@@ -1,4 +1,3 @@
-
 # Copyright (C) 2023-2025 Cognizant Digital Business, Evolutionary AI.
 # All Rights Reserved.
 # Issued under the Academic Public License.
@@ -10,60 +9,70 @@
 #
 # END COPYRIGHT
 {
-    # Currently we list each hocon file we want to serve as a key with a boolean value.
-    # Eventually we might have a dictionary value with server specifications for each.
+    # List each .hocon network you wish to expose. Value enables (true) or disables (false) it.
+    # Basic examples
     "hello_world.hocon": true,
-    "cloud_landing_zone_provider.hocon": true,
-    "insurance_underwriting_agents.hocon": true,
-    "airline_policy.hocon": true,
-    "advanced_calculator.hocon": true,
-    "smart_home.hocon": true,
-    "smart_home_include.hocon": true,
-    "agent_network_designer.hocon": true,
-    "consumer_decision_assistant.hocon": true,
-    "airbnb.hocon": true,
-    "expedia.hocon": true,
-    "macys.hocon": true,
-    "carmax.hocon": true,
-    "booking.hocon": true,
-    "website_search.hocon": true,
     "music_nerd.hocon": true,
     "music_nerd_local.hocon": true,
     "music_nerd_pro.hocon": true,
     "music_nerd_pro_local.hocon": true,
     "music_nerd_pro_sly.hocon": true,
     "music_nerd_pro_sly_local.hocon": true,
+    "advanced_calculator.hocon": true,
+    "smart_home.hocon": true,
+    "smart_home_include.hocon": true,
+    "cloud_landing_zone_provider.hocon": true,
+
+    # Integrations & tools
+    "cloud_infrastructure_provider.hocon": true,
+    "agent_network_html_creator.hocon": true,
     "agentforce.hocon": true,
     "agentspace_adapter.hocon": false,
-    "banking_ops.hocon": true,
-    "cpg_agents.hocon": true,
-    "insurance_agents.hocon": true,
-    "intranet_agents.hocon": true,
-    "intranet_agents_with_tools.hocon": true,
-    "retail_ops_and_customer_service.hocon": true,
-    "six_thinking_hats.hocon": true,
-    "telco_network_support.hocon": true,
     "pdf_rag.hocon": true,
-    "agentic_rag.hocon": true,
-    "kwik_agents.hocon": true,
-    "TherapyVignetteSupervisors.hocon": true,
-
-    # Set the following agent network to true before running apps/conscious_assistant/interface_flask.py
-    "conscious_agent.hocon": false,
-
-    # Before turnining on and running the following agent network, make sure that:
-    # The MCP server is running.
-    # The server can be found at servers/MCP/bmi_server.py and run using the following command
-    # python bmi_server.py
-    "mcp_bmi_sse.hocon": false,
-
-    # The following agnet network is an example of Agent2Agent (A2A) Protocol implementation:
-    # Make sure to start the A2A server before turning the agent on.
-    # The A2Aserver can be found at cservers/A2A/server.py and run by command
-    # python server.py
+    "agentic_rag.hocon": false,
+    "kwik_agents.hocon": false,
+    "gmail.hocon": false,
+    "brave_search.hocon": false,
+    "google_search.hocon": false,
+    "openai_web_search.hocon": true,
+    "openai_code_interpreter.hocon": true,
+    "anthropic_web_search.hocon": true,
+    "anthropic_code_execution.hocon": true,
+    "confluence_rag.hocon": false,
+    "mcp_bmi_streamable_http.hocon": false,
     "a2a_research_report.hocon": false,
 
-    "LinkedInJobSeekerSupportNetwork.hocon": true,
-    "cloud_infrastructure_provider.hocon": true
+    # Use cases
+    "airline_policy.hocon": true,
+    "banking_ops.hocon": true,
+    "cpg_agents.hocon": true,
+    "insurance_agents.hocon": false,  # deprecated
+    "insurance_underwriting_agents.hocon": true,
+    "intranet_agents.hocon": false,   # deprecated
+    "intranet_agents_with_tools.hocon": true,
+    "real_estate.hocon": false,
+    "retail_ops_and_customer_service.hocon": true,
+    "telco_network_support.hocon": true,
+    "therapy_vignette_supervisors.hocon": true,
+    "consumer_decision_assistant.hocon": true,
 
+    # Sub-networks used by composite networks
+    "airbnb.hocon": true,
+    "booking.hocon": true,
+    "carmax.hocon": true,
+    "expedia.hocon": true,
+    "macys.hocon": true,
+    "website_search.hocon": true,
+    "LinkedInJobSeekerSupportNetwork.hocon": true,
+
+    # Experimental / research
+    "agent_network_designer.hocon": true,
+    "six_thinking_hats.hocon": true,
+    "cruse_agent.hocon": false,
+    "conscious_agent.hocon": false,
+    "log_analysis_agents.hocon": false,
+
+    # Demo / generated network examples
+    "agent_network_architect.hocon": false,
+    "news_sentiment_analysis.hocon": false
 }
