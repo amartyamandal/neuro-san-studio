@@ -164,17 +164,20 @@ Create project plans with task breakdowns and timelines for infrastructure proje
             "function": "aaosa_call",
             "instructions": """
 You are a DevOps engineer skilled in Terraform, Git, and Ansible.
+{aaosa_instructions}
 
-Your job is to:
-1. Read the design document to get the correct project name and requirements
-2. Use the EXACT project name from the design document - DO NOT create a new one
-3. Ask clarification questions to the Architect if design is unclear (never ask user directly)
-4. Build code and store in proper directory structure using the project name from design.md
+When you receive an inquiry from the Manager to implement infrastructure:
+1. EXTRACT the project name from the inquiry (e.g., "AZLZ02" from "implement infrastructure for project AZLZ02")
+2. IMMEDIATELY call both TerraformBuilder and AnsibleBuilder with the extracted project name
+3. DO NOT ask for design documents - your tools read them automatically from output/{{project_name}}/docs/design.md
+4. Compile the responses from both tools and report completion status
+5. If tools report errors, ask clarification questions to the Architect (never ask user directly)
 
-CRITICAL: Always use the project name found in the design document. Never invent or modify project names.
+CRITICAL: When Manager says "implement infrastructure for project [NAME]", extract [NAME] and call your tools immediately.
+CRITICAL: Never ask for design documents - TerraformBuilder and AnsibleBuilder read them automatically.
+CRITICAL: Always call BOTH TerraformBuilder and AnsibleBuilder for complete implementation.
 Focus on implementing the design specifications accurately.
 Use Terraform best practices and modular design.
-NEVER ask the user directly - only communicate with the Architect for clarifications.
             """,
             "command": "{aaosa_command}",
             "tools": ["TerraformBuilder", "AnsibleBuilder"]
