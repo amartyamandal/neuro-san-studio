@@ -67,28 +67,63 @@
             console.log('Websocket connected!');
         });
 
-        socket.on('update_speech', function(data) {
-            console.log('[update_speech] Event received:', data);
+        // Sequential rendering & speech pacing
+        const messageQueue = [];
+        let msgActive = false;
+        let pacingEnabled = true; // can be toggled for instant mode
+        const postSpeechGapMs = 120; // small pause
 
-            if (!data || !data.data) {
-                console.warn('[update_speech] Missing or empty data:', data);
+        function enqueueMessage(raw){
+            const tmp = document.createElement('div');
+            tmp.innerHTML = marked.parse(raw);
+            const plain = (tmp.textContent || tmp.innerText || '').trim();
+            messageQueue.push({ raw, plain });
+            drainMessages();
+        }
+
+        function drainMessages(){
+            if(!pacingEnabled){
+                while(messageQueue.length){
+                    renderAndOptionallySpeak(messageQueue.shift(), null);
+                }
                 return;
             }
+            if(msgActive) return;
+            const next = messageQueue.shift();
+            if(!next) return;
+            msgActive = true;
+            renderAndOptionallySpeak(next, () => {
+                setTimeout(()=>{ msgActive = false; drainMessages(); }, postSpeechGapMs);
+            });
+        }
 
-           try {
+        function renderAndOptionallySpeak(item, done){
+            try {
                 const element = document.getElementById('assistant-speech');
-                const markdown = marked.parse(data.data);
+                const markdown = marked.parse(item.raw);
                 const newDiv = document.createElement('div');
                 newDiv.className = 'speech-msg';
                 newDiv.innerHTML = markdown;
-
                 element.appendChild(newDiv);
                 element.scrollTop = element.scrollHeight;
-
-                console.log('[update_speech] Rendered successfully.');
-            } catch (err) {
-                console.error('[update_speech] Error while rendering:', err, data);
+                if(window.AgentAudio && window.AgentAudio.enabled && item.plain){
+                    window.AgentAudio.speakQueued('assistant', item.plain, done);
+                } else {
+                    if(done) done();
+                }
+            } catch(err){
+                console.error('[pacing] render error', err, item);
+                if(done) done();
             }
+        }
+
+        socket.on('update_speech', function(data){
+            console.log('[update_speech] Event received:', data);
+            if(!data || !data.data){
+                console.warn('[update_speech] Missing or empty data:', data);
+                return;
+            }
+            enqueueMessage(data.data);
         });
 
         socket.on('update_gui', function(data) {
@@ -212,7 +247,182 @@
         socket.on('disconnect', function () {
             console.warn('[socket] Disconnected from server');
         });
+    // --- Speech synthesis / Remote TTS with internal queue ---
+    (function(){
+            if(!('speechSynthesis' in window)){
+                console.warn('[AgentAudio] Web Speech API not supported.');
+                window.AgentAudio = { enabled:false, speakQueued:(_,__,cb)=>{ if(cb) cb(); }, pacing:{enable(){},disable(){},toggle(){}} };
+                return;
+            }
+            const settings = { enabled:true, rate:1.0, pitchBase:1.0, voiceLangPrefix:'en' };
+            let voices = [];
+            function loadVoices(){
+                voices = speechSynthesis.getVoices().filter(v=>v.lang && v.lang.startsWith(settings.voiceLangPrefix));
+                if(!voices.length) voices = speechSynthesis.getVoices();
+            }
+            loadVoices();
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+            const agentVoiceMap = {};
+            function pickVoice(agent){
+                if(agentVoiceMap[agent]) return agentVoiceMap[agent];
+                if(!voices.length) loadVoices();
+                agentVoiceMap[agent] = voices[(Object.keys(agentVoiceMap).length) % Math.max(voices.length,1)];
+                return agentVoiceMap[agent];
+            }
+            const speakQueue = [];
+            let speaking = false;
+            function playNext(){
+                if(speaking) return;
+                const item = speakQueue.shift();
+                if(!item){ return; }
+                speaking = true;
+                const u = new SpeechSynthesisUtterance(item.text);
+                u.voice = pickVoice(item.agent);
+                u.rate = settings.rate;
+                const hash = Array.from(item.agent).reduce((a,c)=>a+c.charCodeAt(0),0);
+                u.pitch = settings.pitchBase + ((hash % 7)-3)/30;
+                u.onend = u.onerror = () => { speaking = false; if(item.done) item.done(); playNext(); };
+                speechSynthesis.speak(u);
+            }
+            let remoteTTSEnabled = false;
+            const remoteQueue = [];
+            let remoteProcessing = false;
+            let forceRemote = true; // enforce remote playback when remote TTS is enabled
+            let ttsConfigLoaded = false;
 
+            function ensureBanner(){
+                let b = document.getElementById('tts-status-banner');
+                if(!b){
+                    b = document.createElement('div');
+                    b.id='tts-status-banner';
+                    Object.assign(b.style,{position:'fixed',top:'4px',right:'4px',zIndex:9999,padding:'4px 8px',fontSize:'12px',borderRadius:'4px',background:'#444',color:'#fff',opacity:0.9,fontFamily:'monospace',pointerEvents:'none'});
+                    document.body.appendChild(b);
+                }
+                b.textContent = remoteTTSEnabled ? (forceRemote? 'TTS: OpenAI (remote, forced)' : 'TTS: OpenAI (remote)') : 'TTS: Browser (local)';
+                b.style.background = remoteTTSEnabled ? '#2d6a4f' : '#555';
+            }
+
+            async function fetchTTSConfig(){
+                try {
+                    const r = await fetch('/tts_config');
+                    if(!r.ok) { console.warn('[TTS] config fetch failed', r.status); ensureBanner(); return; }
+                    const cfg = await r.json();
+                    remoteTTSEnabled = !!cfg.enabled;
+                    ttsConfigLoaded = true;
+                    console.log('[TTS] Remote TTS enabled:', remoteTTSEnabled, 'Config:', cfg);
+                } catch(e){ console.warn('[TTS] config fetch failed', e); }
+                ensureBanner();
+            }
+            fetchTTSConfig();
+            setTimeout(fetchTTSConfig, 4000);
+
+            async function fetchRemoteAudio(text){
+                try {
+                    console.log('[TTS] Fetching remote audio for:', text.substring(0, 50) + '...');
+                    const r = await fetch('/tts', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text})});
+                    if(!r.ok){ 
+                        console.error('[TTS] Remote TTS failed:', r.status, await r.text());
+                        throw new Error(`Remote TTS error: ${r.status}`); 
+                    }
+                    const blob = await r.blob();
+                    console.log('[TTS] Got audio blob:', blob.size, 'bytes');
+                    return URL.createObjectURL(blob);
+                } catch(err){ 
+                    console.warn('[TTS] remote fetch failed, will fallback to local', err); 
+                    return null; 
+                }
+            }
+
+            async function processRemoteQueue(){
+                if(remoteProcessing || remoteQueue.length === 0) return;
+                remoteProcessing = true;
+                const item = remoteQueue.shift();
+                
+                const audioUrl = await fetchRemoteAudio(item.text);
+                if(audioUrl){
+                    const audio = new Audio(audioUrl);
+                    audio.onended = () => { 
+                        console.log('[TTS] Remote audio finished');
+                        remoteProcessing = false; 
+                        if(item.done) item.done(); 
+                        processRemoteQueue(); 
+                    };
+                    audio.onerror = (e) => { 
+                        console.error('[TTS] Audio playback error:', e);
+                        remoteProcessing = false; 
+                        if(item.done) item.done(); 
+                        processRemoteQueue(); 
+                    };
+                    console.log('[TTS] Playing remote audio...');
+                    audio.play().catch(err => {
+                        console.error('[TTS] audio.play() failed:', err);
+                        remoteProcessing = false; 
+                        if(item.done) item.done(); 
+                        processRemoteQueue(); 
+                    });
+                } else {
+                    // Fallback to local speech
+                    console.log('[TTS] Falling back to local speech');
+                    remoteProcessing = false;
+                    queueLocal(item.agent, item.text, item.done);
+                }
+            }
+
+            function queueLocal(agent,text,done){
+                speakQueue.push({agent,text,done});
+                playNext();
+            }
+
+            async function speakQueued(agent,text,done){
+                if(!settings.enabled || !text || !text.trim()){ if(done) done(); return; }
+                // If config not yet loaded, delay slightly and retry once to avoid premature local fallback
+                if(!ttsConfigLoaded){
+                    console.log('[TTS] Config not loaded yet; deferring speech 150ms');
+                    setTimeout(()=>speakQueued(agent,text,done),150);
+                    return;
+                }
+                if(remoteTTSEnabled){
+                    console.log(`[TTS] Queue remote${forceRemote? ' (forced)':''}:`, text.substring(0,60)+'...');
+                    remoteQueue.push({agent, text, done});
+                    processRemoteQueue();
+                } else {
+                    console.log('[TTS] Local speech synthesis (remote disabled)');
+                    queueLocal(agent,text,done);
+                }
+            }
+            window.AgentAudio = {
+                get enabled(){return settings.enabled;},
+                enable(){settings.enabled=true;},
+                disable(){settings.enabled=false; speechSynthesis.cancel();},
+                toggle(){settings.enabled=!settings.enabled; if(!settings.enabled){ speechSynthesis.cancel(); } updateBtn();},
+                speakQueued,
+                setRate(r){settings.rate=r;},
+                setPitchBase(p){settings.pitchBase=p;},
+                pacing:{
+                    enable(){pacingEnabled=true;},
+                    disable(){pacingEnabled=false; drainMessages();},
+                    toggle(){pacingEnabled=!pacingEnabled; if(!pacingEnabled) drainMessages();}
+                },
+                remote:{
+                    force(){ forceRemote=true; ensureBanner(); console.log('[TTS] Force remote ON'); },
+                    allowFallback(){ forceRemote=false; ensureBanner(); console.log('[TTS] Force remote OFF (allow local fallback)'); },
+                    status(){ return {remoteTTSEnabled, forceRemote, ttsConfigLoaded}; }
+                }
+            };
+            // UI controls
+            const btn = document.createElement('button');
+            const paceBtn = document.createElement('button');
+            function updateBtn(){ btn.textContent = settings.enabled ? '🔊 Voice On' : '🔇 Voice Off'; }
+            function updatePace(){ paceBtn.textContent = pacingEnabled ? '⏸ Pace' : '▶️ Fast'; }
+            updateBtn(); updatePace();
+            Object.assign(btn.style, {position:'fixed',bottom:'10px',right:'10px',zIndex:9999,background:'#222',color:'#fff',border:'1px solid #555',borderRadius:'6px',padding:'6px 10px',fontSize:'14px',cursor:'pointer'});
+            Object.assign(paceBtn.style, {position:'fixed',bottom:'10px',right:'115px',zIndex:9999,background:'#222',color:'#fff',border:'1px solid #555',borderRadius:'6px',padding:'6px 10px',fontSize:'14px',cursor:'pointer'});
+            btn.addEventListener('click', ()=>window.AgentAudio.toggle());
+            paceBtn.addEventListener('click', ()=>{ window.AgentAudio.pacing.toggle(); updatePace(); });
+            document.body.appendChild(btn);
+            document.body.appendChild(paceBtn);
+            ensureBanner();
+        })();
 
     </script>
 </body>

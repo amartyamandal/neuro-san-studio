@@ -29,6 +29,22 @@ echo "To view logs:   tail -f /tmp/neuroSan.log"
 echo "To check PID:   cat /tmp/neuroSan.pid"
 echo ""
 
+# ----------------------------------------------------------------------------
+# Start CRUSE (Flask / SocketIO) UI automatically
+# ----------------------------------------------------------------------------
+echo "Starting CRUSE Flask UI (port 5001)..."
+nohup python -m apps.cruse.interface_flask > /tmp/cruse.log 2>&1 &
+CRUSE_PID=$!
+echo $CRUSE_PID > /tmp/cruse.pid
+sleep 2
+if kill -0 $CRUSE_PID 2>/dev/null; then
+    echo "CRUSE started (PID: $CRUSE_PID)"
+else
+    echo "[WARN] CRUSE failed to start. Check /tmp/cruse.log"
+fi
+echo "CRUSE log: tail -f /tmp/cruse.log"
+echo ""
+
 # Create a simple stop script
 cat > /tmp/stop_server.sh << 'EOF'
 #!/bin/bash
@@ -132,7 +148,62 @@ echo "  /tmp/start_server.sh   - Start the server"
 echo "  /tmp/stop_server.sh    - Stop the server"
 echo "  /tmp/restart_server.sh - Restart the server"
 echo "  /tmp/server_status.sh  - Check server status"
+echo "  /tmp/cruse_start.sh    - Start CRUSE UI"
+echo "  /tmp/cruse_stop.sh     - Stop CRUSE UI"
+echo "  /tmp/cruse_restart.sh  - Restart CRUSE UI"
+echo "  /tmp/cruse_status.sh   - CRUSE status"
 echo ""
+# ---------------------------------------------------------------------------
+# CRUSE management helper scripts
+# ---------------------------------------------------------------------------
+cat > /tmp/cruse_start.sh << 'EOF'
+#!/bin/bash
+if [ -f /tmp/cruse.pid ]; then
+    PID=$(cat /tmp/cruse.pid)
+    if kill -0 $PID 2>/dev/null; then
+        echo "CRUSE already running (PID: $PID)"; exit 0; fi
+    rm -f /tmp/cruse.pid
+fi
+echo "Starting CRUSE..."
+cd /home/user/app || exit 1
+nohup python -m apps.cruse.interface_flask > /tmp/cruse.log 2>&1 &
+NEWPID=$!
+echo $NEWPID > /tmp/cruse.pid
+sleep 1
+if kill -0 $NEWPID 2>/dev/null; then echo "CRUSE started (PID: $NEWPID)"; else echo "Failed to start CRUSE"; rm -f /tmp/cruse.pid; fi
+EOF
+
+cat > /tmp/cruse_stop.sh << 'EOF'
+#!/bin/bash
+if [ -f /tmp/cruse.pid ]; then
+    PID=$(cat /tmp/cruse.pid)
+    if kill -0 $PID 2>/dev/null; then
+        echo "Stopping CRUSE (PID: $PID)"; kill $PID 2>/dev/null; sleep 2
+    fi
+    if kill -0 $PID 2>/dev/null; then echo "Kill failed"; else echo "CRUSE stopped"; fi
+    rm -f /tmp/cruse.pid
+else
+    echo "No CRUSE PID file"
+fi
+EOF
+
+cat > /tmp/cruse_restart.sh << 'EOF'
+#!/bin/bash
+/tmp/cruse_stop.sh
+/tmp/cruse_start.sh
+EOF
+
+cat > /tmp/cruse_status.sh << 'EOF'
+#!/bin/bash
+if [ -f /tmp/cruse.pid ]; then
+    PID=$(cat /tmp/cruse.pid)
+    if kill -0 $PID 2>/dev/null; then echo "CRUSE running (PID: $PID)"; else echo "CRUSE not running (stale PID)"; rm -f /tmp/cruse.pid; fi
+else
+    echo "CRUSE not running"
+fi
+EOF
+
+chmod +x /tmp/cruse_start.sh /tmp/cruse_stop.sh /tmp/cruse_restart.sh /tmp/cruse_status.sh
 echo "Quick commands:"
 echo "  kill \$(cat /tmp/neuroSan.pid)  - Direct kill"
 echo "  tail -f /tmp/neuroSan.log       - View logs"
@@ -150,6 +221,11 @@ stop() { /tmp/stop_server.sh; }
 restart() { /tmp/restart_server.sh; }
 status() { /tmp/server_status.sh; }
 logs() { tail -f /tmp/neuroSan.log; }
+cruse_logs() { tail -f /tmp/cruse.log; }
+cruse_start() { /tmp/cruse_start.sh; }
+cruse_stop() { /tmp/cruse_stop.sh; }
+cruse_restart() { /tmp/cruse_restart.sh; }
+cruse_status() { /tmp/cruse_status.sh; }
 
 CLEAN_EOF
 
@@ -170,6 +246,11 @@ echo "  stop     - Stop the server"
 echo "  restart  - Restart the server"
 echo "  status   - Check server status"
 echo "  logs     - View logs (Ctrl+C to exit)"
+echo "  cruse_start  - Start CRUSE UI"
+echo "  cruse_stop   - Stop CRUSE UI"
+echo "  cruse_restart- Restart CRUSE UI"
+echo "  cruse_status - CRUSE status"
+echo "  cruse_logs   - Tail CRUSE logs"
 echo ""
 echo "These should work immediately in your shell!"
 echo ""

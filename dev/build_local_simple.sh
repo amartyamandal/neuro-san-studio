@@ -35,13 +35,14 @@ fi
 # Run the Docker container with simple entrypoint
 echo "Running Docker container $CONTAINER_NAME with simple entrypoint..."
 docker run -it --env-file .env --rm --name "$CONTAINER_NAME" \
-  -p 4173:4173 \
-  -p 30013:30013 \
-  -v "$VOLUME_NAME:/home/user/" \
-  -v "$(pwd):/home/user/app/" \
-  --entrypoint bash \
-  "$IMAGE_NAME" -c "chmod +x /home/user/app/dev/entrypoint_simple.sh && \
-  exec /home/user/app/dev/entrypoint_simple.sh"
+    -p 4173:4173 \
+    -p 30011:30011 \
+    -p 8080:8080 \
+    -p 5001:5001 \
+    -v "$VOLUME_NAME:/home/user/" \
+    -v "$(pwd):/home/user/app" \
+    --entrypoint bash \
+    "$IMAGE_NAME" -c 'chmod +x /home/user/app/dev/entrypoint_simple.sh && exec /home/user/app/dev/entrypoint_simple.sh'
 if [ $? -eq 0 ]; then
     echo "Docker container $CONTAINER_NAME ran successfully."
 else

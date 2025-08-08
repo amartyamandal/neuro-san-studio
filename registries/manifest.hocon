@@ -20,8 +20,6 @@
     "music_nerd_pro_sly_local.hocon": true,
     "advanced_calculator.hocon": true,
     "smart_home.hocon": true,
-    "smart_home_include.hocon": true,
-    "cloud_landing_zone_provider.hocon": true,
 
     # Integrations & tools
     "cloud_infrastructure_provider.hocon": true,
@@ -68,7 +66,7 @@
     # Experimental / research
     "agent_network_designer.hocon": true,
     "six_thinking_hats.hocon": true,
-    "cruse_agent.hocon": false,
+    "cruse_agent.hocon": true,
     "conscious_agent.hocon": false,
     "log_analysis_agents.hocon": false,
 

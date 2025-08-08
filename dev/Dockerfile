@@ -44,9 +44,12 @@ RUN useradd -m -s /bin/bash user \
 #COPY docker/dev/entrypoint.sh /entrypoint.sh
 #RUN chmod +x /entrypoint.sh
 
-# expose nsflow client port and neuro-san server port
-EXPOSE 4173
-EXPOSE 30013
+# Expose active service ports
+# 4173  -> nsflow client (UI)
+# 30011 -> Neuro-SAN gRPC server
+# 8080  -> Neuro-SAN HTTP server
+# 5001  -> CRUSE / Flask SocketIO UI
+EXPOSE 4173 30011 8080 5001
 
 USER user
 WORKDIR /home/user/app
