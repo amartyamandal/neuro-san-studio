@@ -9,7 +9,7 @@ DOCKERFILE_PATH="dgo/Dockerfile"
 
 # Build image
 echo "Building Docker image $IMAGE_NAME..."
-docker build -t "$IMAGE_NAME" -f "$DOCKERFILE_PATH" .
+docker build --no-cache -t "$IMAGE_NAME" -f "$DOCKERFILE_PATH" .
 echo "Docker image $IMAGE_NAME built."
 
 # Remove any existing container with the same name
