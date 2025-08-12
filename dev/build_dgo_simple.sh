@@ -42,7 +42,10 @@ if [ -f .env ]; then
   ENV_FILE_ARG="--env-file .env"
 fi
 
-docker run -it $ENV_FILE_ARG --rm --name "$CONTAINER_NAME" \
+# Remove any existing container with the same name to avoid conflicts
+docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+
+docker run -d $ENV_FILE_ARG --name "$CONTAINER_NAME" \
   --user root:root \
   -p 4173:4173 \
   -p 30011:30011 \
@@ -52,5 +55,12 @@ docker run -it $ENV_FILE_ARG --rm --name "$CONTAINER_NAME" \
   -v "$(pwd):$CONTAINER_APP_DIR" \
   -w "$CONTAINER_APP_DIR" \
   --entrypoint bash \
-  "$IMAGE_NAME" -c 'exec bash dev/entrypoint_simple_dgo.sh'
+  "$IMAGE_NAME" -c 'bash dev/entrypoint_simple_dgo.sh; exec tail -f /dev/null'
+
+echo "Container status:"
+docker ps --filter "name=$CONTAINER_NAME" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+if ! docker ps --format '{{.Names}}' | grep -q "^$CONTAINER_NAME$"; then
+  echo "[WARN] Container not running. Recent logs:"
+  docker logs --tail=200 "$CONTAINER_NAME" || true
+fi
 
