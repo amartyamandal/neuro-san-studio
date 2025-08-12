@@ -47,6 +47,12 @@ echo "[entrypoint_dgo] NS config => ${NEURO_SAN_CONNECTION_TYPE}://${NEURO_SAN_S
 mkdir -p "$APP_DIR/logs" "$APP_DIR/logs/tts_cache" || true
 chmod -R 777 "$APP_DIR/logs" || true
 
+# Force CRUSE to use an absolute cache path to avoid cwd-related issues
+export TTS_AUDIO_CACHE_DIR="$APP_DIR/logs/tts_cache"
+mkdir -p "$TTS_AUDIO_CACHE_DIR" || true
+chmod -R 777 "$TTS_AUDIO_CACHE_DIR" || true
+echo "[entrypoint_dgo] TTS_AUDIO_CACHE_DIR=$TTS_AUDIO_CACHE_DIR"
+
 echo "[entrypoint_dgo] Upgrading pip/setuptools/wheel..."
 python -m pip install --no-cache-dir --upgrade pip setuptools wheel || true
 

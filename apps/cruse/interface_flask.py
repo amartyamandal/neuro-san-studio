@@ -181,7 +181,7 @@ def cleanup():
     socketio.stop()
 
 
-@app.route("/shutdown")
+@app.route("/shutdown", methods=["GET", "POST"])
 def shutdown():
     """Shut down process."""
     cleanup()
@@ -312,6 +312,8 @@ def tts_generate():  # pragma: no cover - network path
                             audio_bytes = bytes(maybe)
                     if not audio_bytes:
                         raise RuntimeError("TTS response did not contain audio bytes (param styles tried: %s)" % tried_param_styles)
+                    # Ensure destination dir exists in case it was cleaned up between startup and write
+                    fname.parent.mkdir(parents=True, exist_ok=True)
                     with open(fname, "wb") as f:  # noqa: P103
                         f.write(audio_bytes)
                     log.info(
