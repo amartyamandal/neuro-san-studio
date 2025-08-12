@@ -51,5 +51,5 @@ docker run -it $ENV_FILE_ARG --rm --name "$CONTAINER_NAME" \
   -v "$(pwd):$CONTAINER_APP_DIR" \
   -w "$CONTAINER_APP_DIR" \
   --entrypoint bash \
-  "$IMAGE_NAME" -c 'chmod +x "$CONTAINER_APP_DIR/dev/entrypoint_simple_dgo.sh" && exec "$CONTAINER_APP_DIR/dev/entrypoint_simple_dgo.sh"'
+  "$IMAGE_NAME" -c 'chmod +x dev/entrypoint_simple_dgo.sh && exec dev/entrypoint_simple_dgo.sh'
 
