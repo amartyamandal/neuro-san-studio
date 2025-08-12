@@ -3,7 +3,7 @@
 # Script to update the repository and run the build script
 set -euo pipefail
 
-REPO_URL="<your-repo-url>"  # Replace with your repository URL
+REPO_URL="https://github.com/amartyamandal/neuro-san-studio.git"  # Replace with your repository URL
 CONTAINER_NAME="neuro-san-container"
 DGO_FOLDER="dgo"
 
