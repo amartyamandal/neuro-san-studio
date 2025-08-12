@@ -14,6 +14,7 @@ INSTALL_DIR="${INSTALL_DIR:-/opt/neuro-san-studio}"
 IMAGE_NAME="neuro-san-dev"
 CONTAINER_NAME="neuro-san-container"
 VOLUME_NAME="neuro-san-studio-history"
+CONTAINER_APP_DIR="${CONTAINER_APP_DIR:-/home/user/app}"
 
 # Use sudo only if not running as root
 if [ "$(id -u)" -eq 0 ]; then
@@ -128,6 +129,7 @@ run_container() {
   echo "[Run] Starting container $CONTAINER_NAME"
   # Ensure entrypoint is executable on host to avoid permission issues inside container
   $SUDO chmod +x "$INSTALL_DIR/dev/entrypoint_simple.sh" || true
+  echo "[Run] Mounting host: $INSTALL_DIR -> container: $CONTAINER_APP_DIR"
   # Ports:
   # 4173   -> nsflow client (UI)
   # 30011  -> Neuro-SAN gRPC server
@@ -139,9 +141,9 @@ run_container() {
     -p 8080:8080 \
     -p 5001:5001 \
     -v "$VOLUME_NAME:/home/user/" \
-    -v "$INSTALL_DIR:/home/user/app" \
+    -v "$INSTALL_DIR:$CONTAINER_APP_DIR" \
     --entrypoint bash \
-    "$IMAGE_NAME" -c 'exec /home/user/app/dev/entrypoint_simple.sh'
+  "$IMAGE_NAME" -c "exec bash $CONTAINER_APP_DIR/dev/entrypoint_simple.sh"
 
   echo "[Run] Container launched. Use: $SUDO docker logs -f $CONTAINER_NAME"
 }
