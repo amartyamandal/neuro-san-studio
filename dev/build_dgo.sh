@@ -124,6 +124,42 @@ stop_existing_container() {
   fi
 }
 
+# Optionally cleanup existing installation and Docker artifacts
+maybe_cleanup() {
+  local choice
+  choice="${CLEANUP:-}"
+  if [ -z "$choice" ]; then
+    echo -n "Cleanup existing neuro-san-studio and redo installation? [y/N]: "
+    read -r choice || choice="n"
+  fi
+  case "${choice,,}" in
+    y|yes)
+      echo "[Cleanup] Starting cleanup..."
+      if [ -f "$INSTALL_DIR/dev/clean_dgo.sh" ]; then
+        echo "[Cleanup] Using clean script: $INSTALL_DIR/dev/clean_dgo.sh"
+        $SUDO chmod +x "$INSTALL_DIR/dev/clean_dgo.sh" || true
+        "$INSTALL_DIR/dev/clean_dgo.sh" || true
+      else
+        echo "[Cleanup] Clean script not found. Performing inline cleanup."
+        $SUDO docker rm -f "$CONTAINER_NAME" || true
+        $SUDO docker rmi -f "$IMAGE_NAME" || true
+        $SUDO docker image prune -f || true
+        $SUDO docker volume rm "$VOLUME_NAME" || true
+        if command -v ufw >/dev/null 2>&1; then
+          $SUDO ufw delete allow 4173/tcp || true
+          $SUDO ufw delete allow 5001/tcp || true
+          $SUDO ufw delete allow 8080/tcp || true
+          $SUDO ufw delete allow 30011/tcp || true
+        fi
+        $SUDO rm -rf "$INSTALL_DIR" || true
+      fi
+      ;;
+    *)
+      echo "[Cleanup] Skipped."
+      ;;
+  esac
+}
+
 run_container() {
   cd "$INSTALL_DIR"
   echo "[Run] Starting container $CONTAINER_NAME"
@@ -179,6 +215,7 @@ post_notes() {
 main() {
   detect_ubuntu
   install_docker
+  maybe_cleanup
   prepare_install_dir
   clone_repo
   ensure_env_file
