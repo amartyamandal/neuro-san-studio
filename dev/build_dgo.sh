@@ -174,6 +174,7 @@ run_container() {
   # 8080   -> Neuro-SAN HTTP server
   # 5001   -> CRUSE / Flask SocketIO UI
   $SUDO docker run -d --env-file .env --name "$CONTAINER_NAME" \
+    --restart unless-stopped \
     -p 4173:4173 \
     -p 30011:30011 \
     -p 8080:8080 \
@@ -181,7 +182,7 @@ run_container() {
     -v "$VOLUME_NAME:/home/user/" \
     -v "$INSTALL_DIR:$CONTAINER_APP_DIR" \
     --entrypoint bash \
-  "$IMAGE_NAME" -c "exec bash $CONTAINER_APP_DIR/dev/entrypoint_simple.sh"
+  "$IMAGE_NAME" -lc "bash $CONTAINER_APP_DIR/dev/entrypoint_simple.sh; sleep infinity"
 
   echo "[Run] Container launched. Use: $SUDO docker logs -f $CONTAINER_NAME"
 }
