@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-PORTS=(4173 5001 8080 30011)
+PORTS=(4173 5003 8080 30013)
 
 require_root() {
   if [ "$(id -u)" -ne 0 ]; then
