@@ -126,6 +126,8 @@ stop_existing_container() {
 run_container() {
   cd "$INSTALL_DIR"
   echo "[Run] Starting container $CONTAINER_NAME"
+  # Ensure entrypoint is executable on host to avoid permission issues inside container
+  $SUDO chmod +x "$INSTALL_DIR/dev/entrypoint_simple.sh" || true
   # Ports:
   # 4173   -> nsflow client (UI)
   # 30011  -> Neuro-SAN gRPC server
@@ -139,7 +141,7 @@ run_container() {
     -v "$VOLUME_NAME:/home/user/" \
     -v "$INSTALL_DIR:/home/user/app" \
     --entrypoint bash \
-    "$IMAGE_NAME" -c 'chmod +x /home/user/app/dev/entrypoint_simple.sh && exec /home/user/app/dev/entrypoint_simple.sh'
+    "$IMAGE_NAME" -c 'exec /home/user/app/dev/entrypoint_simple.sh'
 
   echo "[Run] Container launched. Use: $SUDO docker logs -f $CONTAINER_NAME"
 }
