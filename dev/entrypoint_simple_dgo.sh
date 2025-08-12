@@ -14,10 +14,70 @@ export PATH="$HOME/.local/bin:$PATH"
 mkdir -p "$APP_DIR/logs" "$APP_DIR/logs/tts_cache" || true
 chmod -R 777 "$APP_DIR/logs" || true
 
-# Install requirements (best-effort)
-echo "[entrypoint_dgo] Installing requirements..."
-python -m pip install -r requirements.txt || echo "[WARN] Failed to install requirements.txt"
-python -m pip install -r requirements-build.txt || echo "[WARN] Failed to install requirements-build.txt"
+echo "[entrypoint_dgo] Installing requirements (with retry)..."
+set +e
+attempt=0
+max_attempts=2
+until [ $attempt -ge $max_attempts ]
+do
+  attempt=$((attempt+1))
+  echo "[entrypoint_dgo] pip install -r requirements.txt (attempt $attempt/$max_attempts)"
+  python -m pip install --no-cache-dir -r requirements.txt && break
+  echo "[entrypoint_dgo][WARN] requirements.txt install failed (attempt $attempt)"
+  sleep 3
+done
+
+# Optional build-time requirements, non-fatal
+python -m pip install --no-cache-dir -r requirements-build.txt || echo "[WARN] Failed to install requirements-build.txt"
+
+# Verify critical deps; if missing, try minimal fallback set and re-check
+python - <<'PY'
+import sys
+missing = []
+for m in ("flask","flask_socketio","eventlet","neuro_san"):
+    try:
+        __import__(m)
+    except Exception:
+        missing.append(m)
+if missing:
+    print("__MISSING__", ",".join(missing))
+else:
+    print("__MISSING__")
+PY
+MISSING=$(tail -n 1 /tmp/neuroSan.log 2>/dev/null | sed -n 's/^__MISSING__\s*//p')
+# The above won't work because we executed a separate python; capture properly instead:
+MISSING=$(python - <<'PY'
+import sys
+missing = []
+for m in ("flask","flask_socketio","eventlet","neuro_san"):
+    try:
+        __import__(m)
+    except Exception:
+        missing.append(m)
+print(",".join(missing))
+PY
+)
+if [ -n "$MISSING" ]; then
+  echo "[entrypoint_dgo][WARN] Missing modules: $MISSING; installing minimal fallback set..."
+  python -m pip install --no-cache-dir Flask flask-socketio eventlet openai pyhocon python-dotenv uvicorn fastapi nsflow neuro-san neuro-san-web-client || true
+  # Re-check critical imports; if still missing, abort start so user can inspect
+  MISSING2=$(python - <<'PY'
+import sys
+missing = []
+for m in ("flask","flask_socketio","eventlet","neuro_san"):
+    try:
+        __import__(m)
+    except Exception:
+        missing.append(m)
+print(",".join(missing))
+PY
+)
+  if [ -n "$MISSING2" ]; then
+    echo "[entrypoint_dgo][FATAL] Still missing modules after fallback: $MISSING2"
+    exit 1
+  fi
+fi
+set -e
 
 # Start NeuroSan server
 echo "[entrypoint_dgo] Starting NeuroSan server..."
