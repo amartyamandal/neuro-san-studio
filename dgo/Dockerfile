@@ -40,7 +40,7 @@ COPY apps/ /app/apps/
 WORKDIR /app
 
 # Expose required ports (aligned with .env)
-EXPOSE 4173 5003 8080 30013
+EXPOSE 4173 5001 8080 30011
 
 # Set entrypoint to run the application
 CMD ["python", "run.py"]

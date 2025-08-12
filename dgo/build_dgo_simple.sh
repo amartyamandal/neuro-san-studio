@@ -25,8 +25,8 @@ fi
 echo "Running Docker container $CONTAINER_NAME..."
 docker run -d --name "$CONTAINER_NAME" $ENV_FILE_ARG \
   -p 4173:4173 \
-  -p 5003:5003 \
+  -p 5001:5001 \
   -p 8080:8080 \
-  -p 30013:30013 \
+  -p 30011:30011 \
   "$IMAGE_NAME"
 
