@@ -15,6 +15,7 @@ IMAGE_NAME="neuro-san-dev"
 CONTAINER_NAME="neuro-san-container"
 VOLUME_NAME="neuro-san-studio-history"
 CONTAINER_APP_DIR="${CONTAINER_APP_DIR:-/home/user/app}"
+CLEANED="false"
 
 # Use sudo only if not running as root
 if [ "$(id -u)" -eq 0 ]; then
@@ -153,6 +154,7 @@ maybe_cleanup() {
         fi
         $SUDO rm -rf "$INSTALL_DIR" || true
       fi
+      CLEANED="true"
       ;;
     *)
       echo "[Cleanup] Skipped."
@@ -215,9 +217,15 @@ post_notes() {
 main() {
   detect_ubuntu
   install_docker
-  maybe_cleanup
+  # First ensure we have the repo locally (so we can run its clean script if present)
   prepare_install_dir
   clone_repo
+  # Then optionally clean up; if cleaned, re-clone to restore the repo
+  maybe_cleanup
+  if [ "$CLEANED" = "true" ]; then
+    prepare_install_dir
+    clone_repo
+  fi
   ensure_env_file
   build_image
   ensure_volume
