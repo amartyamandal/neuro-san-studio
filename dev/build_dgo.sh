@@ -140,7 +140,10 @@ maybe_cleanup() {
       if [ -f "$INSTALL_DIR/dev/clean_dgo.sh" ]; then
         echo "[Cleanup] Using clean script: $INSTALL_DIR/dev/clean_dgo.sh"
         $SUDO chmod +x "$INSTALL_DIR/dev/clean_dgo.sh" || true
+        # Ensure we are not inside the directory being deleted during cleanup
+        pushd / >/dev/null || true
         "$INSTALL_DIR/dev/clean_dgo.sh" || true
+        popd >/dev/null || true
       else
         echo "[Cleanup] Clean script not found. Performing inline cleanup."
         $SUDO docker rm -f "$CONTAINER_NAME" || true
@@ -153,6 +156,7 @@ maybe_cleanup() {
           $SUDO ufw delete allow 8080/tcp || true
           $SUDO ufw delete allow 30011/tcp || true
         fi
+        # Avoid removing the directory this script may be running from; it will be re-cloned later anyway
         $SUDO rm -rf "$INSTALL_DIR" || true
       fi
       CLEANED="true"
@@ -177,6 +181,9 @@ run_container() {
   $SUDO docker run -d --env-file .env --name "$CONTAINER_NAME" \
     --user root:root \
     --restart unless-stopped \
+  -e NEURO_SAN_CONNECTION_TYPE=grpc \
+  -e NEURO_SAN_SERVER_HOST=127.0.0.1 \
+  -e NEURO_SAN_SERVER_PORT=30011 \
     -p 4173:4173 \
     -p 30011:30011 \
     -p 8080:8080 \

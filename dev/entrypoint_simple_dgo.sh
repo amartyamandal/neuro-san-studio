@@ -21,6 +21,12 @@ source "$VENV_DIR/bin/activate"
 echo "[entrypoint_dgo] Using Python: $(python -V)"
 echo "[entrypoint_dgo] Using Pip: $(pip -V)"
 
+# Force-correct NeuroSan/NSFlow connectivity (override any bad values from .env)
+export NEURO_SAN_CONNECTION_TYPE="grpc"
+export NEURO_SAN_SERVER_HOST="127.0.0.1"
+export NEURO_SAN_SERVER_PORT="30011"
+echo "[entrypoint_dgo] NS config => ${NEURO_SAN_CONNECTION_TYPE}://${NEURO_SAN_SERVER_HOST}:${NEURO_SAN_SERVER_PORT}"
+
 # Ensure logs (and TTS cache) exist and are writable
 mkdir -p "$APP_DIR/logs" "$APP_DIR/logs/tts_cache" || true
 chmod -R 777 "$APP_DIR/logs" || true
@@ -116,6 +122,36 @@ if kill -0 "$CRUSE_PID" 2>/dev/null; then
 else
   echo "[entrypoint_dgo][WARN] CRUSE failed to start. See /tmp/cruse.log"
 fi
+
+# Start NSFlow FastAPI backend (port 4173)
+echo "[entrypoint_dgo] Starting NSFlow backend (port 4173)..."
+nohup python -m uvicorn nsflow.backend.main:app --host 0.0.0.0 --port 4173 > "$APP_DIR/logs/nsflow.log" 2>&1 &
+NSFLOW_PID=$!
+echo $NSFLOW_PID > /tmp/nsflow.pid
+sleep 2
+if kill -0 "$NSFLOW_PID" 2>/dev/null; then
+  echo "[entrypoint_dgo] NSFlow started (PID: $NSFLOW_PID)"
+else
+  echo "[entrypoint_dgo][WARN] NSFlow failed to start. See $APP_DIR/logs/nsflow.log"
+fi
+
+# If NSFlow backend (FastAPI on 4173) is present, set its runtime config to our NS settings
+(
+  for i in {1..30}; do
+    if curl -fsS http://127.0.0.1:4173/api/v1/ping >/dev/null 2>&1; then
+      echo "[entrypoint_dgo] Detected NSFlow backend; setting runtime config..."
+      curl -fsS -X POST http://127.0.0.1:4173/api/v1/set_ns_config \
+        -H 'Content-Type: application/json' \
+        -d "{\"NEURO_SAN_CONNECTION_TYPE\":\"grpc\",\"NEURO_SAN_SERVER_HOST\":\"127.0.0.1\",\"NEURO_SAN_SERVER_PORT\":30011}" \
+        && echo "[entrypoint_dgo] NSFlow config set." \
+        || echo "[entrypoint_dgo][WARN] Failed to set NSFlow config."
+      # Show the applied config
+      curl -fsS http://127.0.0.1:4173/api/v1/get_ns_config || true
+      break
+    fi
+    sleep 2
+  done
+) &
 
 # Helper scripts
 cat > /tmp/start_server.sh << 'EOF'
