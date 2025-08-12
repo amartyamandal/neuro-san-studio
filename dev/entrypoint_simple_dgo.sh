@@ -10,9 +10,23 @@ cd "$APP_DIR" || { echo "[FATAL] Cannot cd to $APP_DIR"; exit 1; }
 # PATH tweaks
 export PATH="$HOME/.local/bin:$PATH"
 
+# Create and activate a virtual environment to avoid system package conflicts
+VENV_DIR="$APP_DIR/.venv"
+if [ ! -d "$VENV_DIR" ]; then
+  echo "[entrypoint_dgo] Creating venv at $VENV_DIR"
+  python -m venv "$VENV_DIR"
+fi
+# shellcheck disable=SC1090
+source "$VENV_DIR/bin/activate"
+echo "[entrypoint_dgo] Using Python: $(python -V)"
+echo "[entrypoint_dgo] Using Pip: $(pip -V)"
+
 # Ensure logs (and TTS cache) exist and are writable
 mkdir -p "$APP_DIR/logs" "$APP_DIR/logs/tts_cache" || true
 chmod -R 777 "$APP_DIR/logs" || true
+
+echo "[entrypoint_dgo] Upgrading pip/setuptools/wheel..."
+python -m pip install --no-cache-dir --upgrade pip setuptools wheel || true
 
 echo "[entrypoint_dgo] Installing requirements (with retry)..."
 set +e
@@ -30,7 +44,7 @@ done
 # Optional build-time requirements, non-fatal
 python -m pip install --no-cache-dir -r requirements-build.txt || echo "[WARN] Failed to install requirements-build.txt"
 
-# Verify critical deps; if missing, try minimal fallback set and re-check
+# Verify critical deps; if missing, try minimal fallback set and re-check (in venv)
 python - <<'PY'
 import sys
 missing = []
@@ -107,6 +121,7 @@ fi
 cat > /tmp/start_server.sh << 'EOF'
 #!/bin/bash
 APP_DIR="${CONTAINER_APP_DIR:-${PWD:-/opt/neuro-san-studio}}"
+if [ -f "$APP_DIR/.venv/bin/activate" ]; then . "$APP_DIR/.venv/bin/activate"; fi
 if [ -f /tmp/neuroSan.pid ]; then
   PID=$(cat /tmp/neuroSan.pid)
   if kill -0 $PID 2>/dev/null; then echo "Server already running (PID: $PID)"; exit 0; else rm -f /tmp/neuroSan.pid; fi
@@ -155,6 +170,7 @@ chmod +x /tmp/server_status.sh
 cat > /tmp/cruse_start.sh << 'EOF'
 #!/bin/bash
 APP_DIR="${CONTAINER_APP_DIR:-${PWD:-/opt/neuro-san-studio}}"
+if [ -f "$APP_DIR/.venv/bin/activate" ]; then . "$APP_DIR/.venv/bin/activate"; fi
 if [ -f /tmp/cruse.pid ]; then
   PID=$(cat /tmp/cruse.pid)
   if kill -0 $PID 2>/dev/null; then echo "CRUSE already running (PID: $PID)"; exit 0; else rm -f /tmp/cruse.pid; fi
