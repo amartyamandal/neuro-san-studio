@@ -7,11 +7,16 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=UTC
 
-# Install Python and pip
+# Install Python 3.12 via deadsnakes PPA and curl
 RUN apt-get update && apt-get install -y \
+      software-properties-common \
+      curl \
+      gnupg \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update \
+    && apt-get install -y \
       python3.12 \
       python3.12-venv \
-      curl \
     && ln -sf /usr/bin/python3.12 /usr/bin/python3 \
     && ln -sf /usr/bin/python3.12 /usr/bin/python \
     && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 \
@@ -28,8 +33,8 @@ COPY apps/ /app/apps/
 # Set working directory
 WORKDIR /app
 
-# Expose required ports
-EXPOSE 4173 30011 8080 5003
+# Expose required ports (aligned with .env)
+EXPOSE 4173 5003 8080 30013
 
 # Set entrypoint to run the application
 CMD ["python", "run.py"]
