@@ -103,9 +103,9 @@ clone_repo() {
 
 ensure_env_file() {
   cd "$INSTALL_DIR"
-  if [ ! -f .env ]; then
-    echo "[Env] Creating .env with placeholders (edit as needed)"
-    cat > .env <<'EOF'
+  if [ ! -f .env ] && [ ! -f .env.example ]; then
+    echo "[Env] No .env found. Creating .env.example (copy to .env and edit as needed)"
+    cat > .env.example <<'EOF'
 # --- Required for remote TTS (optional, but recommended) ---
 ENABLE_OPENAI_TTS=true
 OPENAI_API_KEY=
@@ -116,8 +116,10 @@ OPENAI_TTS_TEMPERATURE=0.6
 
 # You can add other application environment variables here
 EOF
-  else
+  elif [ -f .env ]; then
     echo "[Env] Using existing .env"
+  else
+    echo "[Env] .env not present (proceeding without --env-file). See .env.example to create one."
   fi
 }
 
@@ -190,17 +192,19 @@ run_container() {
   # Ensure entrypoint is executable on host to avoid permission issues inside container
   $SUDO chmod +x "$INSTALL_DIR/dev/entrypoint_simple.sh" || true
   echo "[Run] Mounting host: $INSTALL_DIR -> container: $CONTAINER_APP_DIR"
+  # Use --env-file only if .env exists to avoid creating/overwriting it implicitly
+  ENV_FILE_ARG=""
+  if [ -f .env ]; then
+    ENV_FILE_ARG="--env-file .env"
+  fi
   # Ports:
   # 4173   -> nsflow client (UI)
   # 30011  -> Neuro-SAN gRPC server
   # 8080   -> Neuro-SAN HTTP server
   # 5001   -> CRUSE / Flask SocketIO UI
-  $SUDO docker run -d --env-file .env --name "$CONTAINER_NAME" \
+  $SUDO docker run -d $ENV_FILE_ARG --name "$CONTAINER_NAME" \
     --user root:root \
     --restart unless-stopped \
-  -e NEURO_SAN_CONNECTION_TYPE=grpc \
-  -e NEURO_SAN_SERVER_HOST=127.0.0.1 \
-  -e NEURO_SAN_SERVER_PORT=30011 \
     -p 4173:4173 \
     -p 30011:30011 \
     -p 8080:8080 \

@@ -21,10 +21,20 @@ source "$VENV_DIR/bin/activate"
 echo "[entrypoint_dgo] Using Python: $(python -V)"
 echo "[entrypoint_dgo] Using Pip: $(pip -V)"
 
-# Force-correct NeuroSan/NSFlow connectivity (override any bad values from .env)
-export NEURO_SAN_CONNECTION_TYPE="grpc"
-export NEURO_SAN_SERVER_HOST="127.0.0.1"
-export NEURO_SAN_SERVER_PORT="30011"
+# Source .env first so user-provided values win
+if [ -f "$APP_DIR/.env" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$APP_DIR/.env"
+  set +a
+  echo "[entrypoint_dgo] Sourced .env"
+fi
+
+# Set sensible defaults only if unset
+: "${NEURO_SAN_CONNECTION_TYPE:=grpc}"
+: "${NEURO_SAN_SERVER_HOST:=127.0.0.1}"
+: "${NEURO_SAN_SERVER_PORT:=30011}"
+export NEURO_SAN_CONNECTION_TYPE NEURO_SAN_SERVER_HOST NEURO_SAN_SERVER_PORT
 echo "[entrypoint_dgo] NS config => ${NEURO_SAN_CONNECTION_TYPE}://${NEURO_SAN_SERVER_HOST}:${NEURO_SAN_SERVER_PORT}"
 
 # Ensure logs (and TTS cache) exist and are writable
@@ -139,10 +149,10 @@ fi
 (
   for i in {1..30}; do
     if curl -fsS http://127.0.0.1:4173/api/v1/ping >/dev/null 2>&1; then
-      echo "[entrypoint_dgo] Detected NSFlow backend; setting runtime config..."
+      echo "[entrypoint_dgo] Detected NSFlow backend; setting runtime config to ${NEURO_SAN_CONNECTION_TYPE}://${NEURO_SAN_SERVER_HOST}:${NEURO_SAN_SERVER_PORT}..."
       curl -fsS -X POST http://127.0.0.1:4173/api/v1/set_ns_config \
         -H 'Content-Type: application/json' \
-        -d "{\"NEURO_SAN_CONNECTION_TYPE\":\"grpc\",\"NEURO_SAN_SERVER_HOST\":\"127.0.0.1\",\"NEURO_SAN_SERVER_PORT\":30011}" \
+        -d "{\"NEURO_SAN_CONNECTION_TYPE\":\"${NEURO_SAN_CONNECTION_TYPE}\",\"NEURO_SAN_SERVER_HOST\":\"${NEURO_SAN_SERVER_HOST}\",\"NEURO_SAN_SERVER_PORT\":${NEURO_SAN_SERVER_PORT}}" \
         && echo "[entrypoint_dgo] NSFlow config set." \
         || echo "[entrypoint_dgo][WARN] Failed to set NSFlow config."
       # Show the applied config
