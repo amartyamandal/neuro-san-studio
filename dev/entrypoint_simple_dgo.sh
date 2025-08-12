@@ -110,8 +110,8 @@ fi
 set -e
 
 # Start NeuroSan server
-echo "[entrypoint_dgo] Starting NeuroSan server..."
-nohup python -m run > /tmp/neuroSan.log 2>&1 &
+echo "[entrypoint_dgo] Starting NeuroSan server (server-only)..."
+nohup python -m run --server-only > /tmp/neuroSan.log 2>&1 &
 NS_PID=$!
 echo $NS_PID > /tmp/neuroSan.pid
 sleep 2
@@ -173,7 +173,7 @@ if [ -f /tmp/neuroSan.pid ]; then
   if kill -0 $PID 2>/dev/null; then echo "Server already running (PID: $PID)"; exit 0; else rm -f /tmp/neuroSan.pid; fi
 fi
 cd "$APP_DIR" || exit 1
-nohup python -m run > /tmp/neuroSan.log 2>&1 &
+nohup python -m run --server-only > /tmp/neuroSan.log 2>&1 &
 NEW_PID=$!
 echo $NEW_PID > /tmp/neuroSan.pid
 sleep 1
