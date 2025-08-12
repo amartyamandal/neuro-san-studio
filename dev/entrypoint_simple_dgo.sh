@@ -30,6 +30,12 @@ if [ -f "$APP_DIR/.env" ]; then
   echo "[entrypoint_dgo] Sourced .env"
 fi
 
+# Ensure registry/tool paths are visible to processes that read local HOCON
+export AGENT_MANIFEST_FILE="$APP_DIR/registries/manifest.hocon"
+export AGENT_TOOL_PATH="$APP_DIR/coded_tools"
+echo "[entrypoint_dgo] AGENT_MANIFEST_FILE=$AGENT_MANIFEST_FILE"
+echo "[entrypoint_dgo] AGENT_TOOL_PATH=$AGENT_TOOL_PATH"
+
 # Set sensible defaults only if unset
 : "${NEURO_SAN_CONNECTION_TYPE:=grpc}"
 : "${NEURO_SAN_SERVER_HOST:=127.0.0.1}"
