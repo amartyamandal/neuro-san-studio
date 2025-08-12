@@ -185,6 +185,9 @@ class NeuroSanRunner:
             os.environ["THINKING_DIR"] = self.args["thinking_dir"]
             print(f"THINKING_FILE set to: {os.environ['THINKING_FILE']}")
             print(f"THINKING_DIR set to: {os.environ['THINKING_DIR']}")
+            # Ensure NSFLOW_HOST is available to any consumer expecting it from env
+            os.environ["NSFLOW_HOST"] = self.args["nsflow_host"]
+            print(f"NSFLOW_HOST set to: {os.environ['NSFLOW_HOST']}")
             if self.args["use_flask_web_client"]:
                 os.environ["NEURO_SAN_WEB_CLIENT_PORT"] = str(self.args["web_client_port"])
                 print(f"NEURO_SAN_WEB_CLIENT_PORT set to: {os.environ['NEURO_SAN_WEB_CLIENT_PORT']}")
