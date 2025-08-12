@@ -14,7 +14,8 @@ INSTALL_DIR="${INSTALL_DIR:-/opt/neuro-san-studio}"
 IMAGE_NAME="neuro-san-dev"
 CONTAINER_NAME="neuro-san-container"
 VOLUME_NAME="neuro-san-studio-history"
-CONTAINER_APP_DIR="${CONTAINER_APP_DIR:-/home/user/app}"
+## Inside-container app path should mirror the host INSTALL_DIR (no /home/user/app)
+CONTAINER_APP_DIR="${CONTAINER_APP_DIR:-$INSTALL_DIR}"
 CLEANED="false"
 
 # Use sudo only if not running as root
@@ -174,15 +175,17 @@ run_container() {
   # 8080   -> Neuro-SAN HTTP server
   # 5001   -> CRUSE / Flask SocketIO UI
   $SUDO docker run -d --env-file .env --name "$CONTAINER_NAME" \
+    --user root:root \
     --restart unless-stopped \
     -p 4173:4173 \
     -p 30011:30011 \
     -p 8080:8080 \
     -p 5001:5001 \
-    -v "$VOLUME_NAME:/home/user/" \
+    -v "$VOLUME_NAME:$CONTAINER_APP_DIR/.history" \
     -v "$INSTALL_DIR:$CONTAINER_APP_DIR" \
+    -w "$CONTAINER_APP_DIR" \
     --entrypoint bash \
-  "$IMAGE_NAME" -lc "bash $CONTAINER_APP_DIR/dev/entrypoint_simple.sh; sleep infinity"
+  "$IMAGE_NAME" -lc "chmod +x $CONTAINER_APP_DIR/dev/entrypoint_simple_dgo.sh; bash $CONTAINER_APP_DIR/dev/entrypoint_simple_dgo.sh; sleep infinity"
 
   echo "[Run] Container launched. Use: $SUDO docker logs -f $CONTAINER_NAME"
 }
