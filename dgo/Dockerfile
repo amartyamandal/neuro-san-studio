@@ -22,9 +22,15 @@ RUN apt-get update && apt-get install -y \
     && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 \
     && rm -rf /var/lib/apt/lists/*
 
+# Create an isolated virtual environment and use it for all installs
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3.12 -m venv "$VIRTUAL_ENV"
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
 # Install only necessary dependencies
 COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --upgrade pip setuptools wheel \
+ && pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy application files
 COPY run.py /app/run.py
