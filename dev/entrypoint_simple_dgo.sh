@@ -101,7 +101,7 @@ PY
 )
 if [ -n "$MISSING" ]; then
   echo "[entrypoint_dgo][WARN] Missing modules: $MISSING; installing minimal fallback set..."
-  python -m pip install --no-cache-dir Flask flask-socketio eventlet openai pyhocon python-dotenv uvicorn fastapi nsflow neuro-san neuro-san-web-client || true
+  python -m pip install --no-cache-dir Flask flask-socketio eventlet schedule openai pyhocon python-dotenv uvicorn fastapi nsflow neuro-san neuro-san-web-client || true
   # Re-check critical imports; if still missing, abort start so user can inspect
   MISSING2=$(python - <<'PY'
 import sys
@@ -144,6 +144,18 @@ if kill -0 "$CRUSE_PID" 2>/dev/null; then
 else
   echo "[entrypoint_dgo][WARN] CRUSE failed to start. See /tmp/cruse.log"
 fi
+
+# Quick local health check for CRUSE UI
+for i in {1..10}; do
+  if curl -fsS http://127.0.0.1:5001/ >/dev/null 2>&1; then
+    echo "[entrypoint_dgo] CRUSE health check OK on localhost:5001"
+    break
+  fi
+  sleep 1
+  if [ $i -eq 10 ]; then
+    echo "[entrypoint_dgo][WARN] CRUSE not responding on localhost:5001 after 10s. Check /tmp/cruse.log."
+  fi
+done
 
 # Start NSFlow FastAPI backend (port 4173)
 echo "[entrypoint_dgo] Starting NSFlow backend (port 4173)..."
