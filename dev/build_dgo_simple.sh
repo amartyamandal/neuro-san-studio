@@ -43,6 +43,7 @@ if [ -f .env ]; then
 fi
 
 docker run -it $ENV_FILE_ARG --rm --name "$CONTAINER_NAME" \
+  --user root:root \
   -p 4173:4173 \
   -p 30011:30011 \
   -p 8080:8080 \

@@ -21,13 +21,17 @@ source "$VENV_DIR/bin/activate"
 echo "[entrypoint_dgo] Using Python: $(python -V)"
 echo "[entrypoint_dgo] Using Pip: $(pip -V)"
 
-# Source .env first so user-provided values win
+# Source .env first so user-provided values win (only if readable)
 if [ -f "$APP_DIR/.env" ]; then
-  set -a
-  # shellcheck disable=SC1090
-  . "$APP_DIR/.env"
-  set +a
-  echo "[entrypoint_dgo] Sourced .env"
+  if [ -r "$APP_DIR/.env" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$APP_DIR/.env" || echo "[entrypoint_dgo][WARN] Failed to source .env (non-fatal)"
+    set +a
+    echo "[entrypoint_dgo] Sourced .env"
+  else
+    echo "[entrypoint_dgo][WARN] .env exists but is not readable; skipping"
+  fi
 fi
 
 # Ensure registry/tool paths are visible to processes that read local HOCON
