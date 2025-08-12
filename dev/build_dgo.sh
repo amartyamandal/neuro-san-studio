@@ -27,6 +27,23 @@ fi
 
 echo "[Setup] Starting bootstrap for neuro-san-studio"
 
+# Preserve existing .env across cleanup/reclone steps
+ENV_BACKUP_TMP="/tmp/neuro-san-dotenv.backup"
+backup_env_if_present() {
+  if [ -f "$INSTALL_DIR/.env" ]; then
+    cp -f "$INSTALL_DIR/.env" "$ENV_BACKUP_TMP" || true
+    echo "[Env] Backed up existing .env to $ENV_BACKUP_TMP"
+  fi
+}
+restore_env_if_backed() {
+  if [ -f "$ENV_BACKUP_TMP" ]; then
+    cp -f "$ENV_BACKUP_TMP" "$INSTALL_DIR/.env" || true
+    $SUDO chown root:root "$INSTALL_DIR/.env" 2>/dev/null || true
+    $SUDO chmod 600 "$INSTALL_DIR/.env" 2>/dev/null || true
+    echo "[Env] Restored .env from backup"
+  fi
+}
+
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || { echo "[Error] Required command '$1' not found."; exit 1; }
 }
@@ -230,6 +247,8 @@ main() {
   install_docker
   # First ensure we have the repo locally (so we can run its clean script if present)
   prepare_install_dir
+  # Backup .env before any cleanup that may remove INSTALL_DIR
+  backup_env_if_present
   clone_repo
   # Then optionally clean up; if cleaned, re-clone to restore the repo
   maybe_cleanup
@@ -237,6 +256,8 @@ main() {
     prepare_install_dir
     clone_repo
   fi
+  # Restore .env backup if available; otherwise create a placeholder
+  restore_env_if_backed
   ensure_env_file
   build_image
   ensure_volume
