@@ -152,7 +152,7 @@ fi
       echo "[entrypoint_dgo] Detected NSFlow backend; setting runtime config to ${NEURO_SAN_CONNECTION_TYPE}://${NEURO_SAN_SERVER_HOST}:${NEURO_SAN_SERVER_PORT}..."
       curl -fsS -X POST http://127.0.0.1:4173/api/v1/set_ns_config \
         -H 'Content-Type: application/json' \
-        -d "{\"NEURO_SAN_CONNECTION_TYPE\":\"${NEURO_SAN_CONNECTION_TYPE}\",\"NEURO_SAN_SERVER_HOST\":\"${NEURO_SAN_SERVER_HOST}\",\"NEURO_SAN_SERVER_PORT\":${NEURO_SAN_SERVER_PORT}}" \
+        -d "{\"ns_connection_type\":\"${NEURO_SAN_CONNECTION_TYPE}\",\"ns_server_host\":\"${NEURO_SAN_SERVER_HOST}\",\"ns_server_port\":${NEURO_SAN_SERVER_PORT}}" \
         && echo "[entrypoint_dgo] NSFlow config set." \
         || echo "[entrypoint_dgo][WARN] Failed to set NSFlow config."
       # Show the applied config
